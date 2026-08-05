@@ -1,0 +1,137 @@
+{
+  "counts": {
+    "factor_summaries": 3,
+    "financial_batches": 3,
+    "mad_audit_rows": 36,
+    "observation_sidecar_rows": 1080,
+    "prepared_factor_rows": 1080,
+    "public_batch_rows": {
+      "BP": 30,
+      "OCF_NP": 30,
+      "ROE": 30
+    }
+  },
+  "evaluation_dates": [
+    "2024-01-31",
+    "2024-02-29",
+    "2024-03-29",
+    "2024-04-30",
+    "2024-05-31",
+    "2024-06-28",
+    "2024-07-31",
+    "2024-08-30",
+    "2024-09-30",
+    "2024-10-31",
+    "2024-11-29",
+    "2024-12-31"
+  ],
+  "factor_ids": [
+    "ROE",
+    "BP",
+    "OCF_NP"
+  ],
+  "fixture_id": "financial-mvp-three-factor-2024-v1",
+  "fixture_schema_version": "SyntheticFinancialMVPEndToEnd-v1.0",
+  "gates": {
+    "m_evaluation": "ready",
+    "mvp_batch": "ready",
+    "output": "ready",
+    "preprocessing": "ready",
+    "robustness": "ready"
+  },
+  "input_mutation_guard": {
+    "after": "fa95ffc9cc8bbb89623493c9902faf9a9bd5ff39abf5648007ab964e5e5a2ad2",
+    "before": "fa95ffc9cc8bbb89623493c9902faf9a9bd5ff39abf5648007ab964e5e5a2ad2",
+    "unchanged": true
+  },
+  "m_evaluation": {
+    "BP": {
+      "effective_dates": 12,
+      "long_short_mean": 0.008000000000000002,
+      "monotonicity_spearman": 0.9999999999999999,
+      "paired_observations": 360,
+      "pearson_ic_mean": 0.3333333333333332,
+      "rank_ic_ir": 0.338501600193165,
+      "rank_ic_mean": 0.3333333333333333,
+      "rank_ic_positive_ratio": 0.6666666666666666,
+      "rank_ic_t_stat": 0.9370425713316363,
+      "status": "completed"
+    },
+    "OCF_NP": {
+      "effective_dates": 12,
+      "long_short_mean": 0.008000000000000002,
+      "monotonicity_spearman": 0.9999999999999999,
+      "paired_observations": 360,
+      "pearson_ic_mean": 0.3333333333333333,
+      "rank_ic_ir": 0.338501600193165,
+      "rank_ic_mean": 0.3333333333333333,
+      "rank_ic_positive_ratio": 0.6666666666666666,
+      "rank_ic_t_stat": 0.9370425713316363,
+      "status": "completed"
+    },
+    "ROE": {
+      "effective_dates": 12,
+      "long_short_mean": 0.008000000000000002,
+      "monotonicity_spearman": 0.9999999999999999,
+      "paired_observations": 360,
+      "pearson_ic_mean": 0.33257986517030846,
+      "rank_ic_ir": 0.338501600193165,
+      "rank_ic_mean": 0.3333333333333333,
+      "rank_ic_positive_ratio": 0.6666666666666666,
+      "rank_ic_t_stat": 0.9370425713316363,
+      "status": "completed"
+    }
+  },
+  "output": {
+    "output_audit_hash": "78db368794899ca6287d7ab2e0df5eea641ad99af8826c6e682f402aa5f7983d",
+    "run_content_hash": "fcae2be3e10b74444922c8e04f7b6ea909b7e8bea05b5eb2440bf9d17f8b5c0e",
+    "run_id": "fin-mvp-output-68150aa59b7d17c779648f5b",
+    "summary_hashes": {
+      "BP": "25aca1e716a95e5c6410865bfa6e682adc3847121b99a5f538e47dd3c4d0ca7e",
+      "OCF_NP": "b844ef0effe0eea534fc872b484f70abf708ab58a1a4f965f6ab2101b6fa3aa9",
+      "ROE": "eebbeeb72332da92f96d44ad7497c34da9c7700bf92ae1e7f84a0addefe72de1"
+    },
+    "summary_statuses": {
+      "BP": {
+        "calculation_status": "completed",
+        "evidence_assessment": "exploratory",
+        "gate_status": "ready",
+        "production_status": "not production ready"
+      },
+      "OCF_NP": {
+        "calculation_status": "completed",
+        "evidence_assessment": "exploratory",
+        "gate_status": "ready",
+        "production_status": "not production ready"
+      },
+      "ROE": {
+        "calculation_status": "completed",
+        "evidence_assessment": "exploratory",
+        "gate_status": "ready",
+        "production_status": "not production ready"
+      }
+    }
+  },
+  "return_horizon": "20",
+  "robustness": {
+    "BP": {
+      "best_cell_selected": false,
+      "cell_count": 6,
+      "preprocessing_consistency": "consistent",
+      "subperiod_direction_consistency": "mixed"
+    },
+    "OCF_NP": {
+      "best_cell_selected": false,
+      "cell_count": 6,
+      "preprocessing_consistency": "consistent",
+      "subperiod_direction_consistency": "mixed"
+    },
+    "ROE": {
+      "best_cell_selected": false,
+      "cell_count": 6,
+      "preprocessing_consistency": "consistent",
+      "subperiod_direction_consistency": "mixed"
+    }
+  },
+  "snapshot_schema_version": "FinancialMVPGoldenSnapshot-v1.0"
+}

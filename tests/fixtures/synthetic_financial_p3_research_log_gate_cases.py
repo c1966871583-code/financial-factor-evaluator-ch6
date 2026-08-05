@@ -1,0 +1,6 @@
+from backend.amr.financial_p3_research_log_gate import evaluate_financial_p3_research_log_gate
+from tests.fixtures.synthetic_financial_p3_research_log_assembly_cases import make_inputs
+from backend.amr.financial_p3_research_log_assembly import assemble_financial_p3_research_log_artifact
+def make_inputs_for_gate():
+ log=make_inputs();return log,assemble_financial_p3_research_log_artifact(log)
+def make_result():return evaluate_financial_p3_research_log_gate(*make_inputs_for_gate())

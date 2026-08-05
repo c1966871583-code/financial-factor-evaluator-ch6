@@ -1,0 +1,8 @@
+from backend.amr.financial_p3_research_log_contract import ResearchLogSchema
+from backend.amr.financial_p3_research_log_lineage import collect_financial_p3_research_log_lineage
+from tests.fixtures.synthetic_financial_p3_info_gain_task_gate_cases import make_inputs,make_configuration
+from backend.amr.financial_p3_info_gain_task_gate import evaluate_financial_p3_info_gain_task_gate
+HEAD="f957d02f2f2d97606e2ed40d44f985b05f2ac31a";CONTROL="2c775ad97db8dd06fedbb15af5d50a1684e9251e287046f8add6aff060fe5a47"
+def make_inputs_for_log():
+ summary,bad=make_inputs();return ResearchLogSchema(),summary,bad,evaluate_financial_p3_info_gain_task_gate(summary,bad,configuration=make_configuration())
+def make_snapshot():return collect_financial_p3_research_log_lineage(*make_inputs_for_log(),repository_head=HEAD,control_sha256=CONTROL)

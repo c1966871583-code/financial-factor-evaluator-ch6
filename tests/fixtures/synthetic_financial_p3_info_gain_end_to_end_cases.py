@@ -1,0 +1,5 @@
+from backend.amr.financial_p3_info_gain_summary import summarize_financial_p3_info_gain
+from backend.amr.financial_p3_info_gain_bad_data_gate import run_financial_p3_info_gain_bad_data_gate
+from tests.fixtures.synthetic_financial_p3_info_gain_summary_cases import make_inputs,make_configuration
+from tests.fixtures.synthetic_financial_p3_info_gain_bad_data_cases import make_corpus
+def run_pipeline():return summarize_financial_p3_info_gain(*make_inputs(),configuration=make_configuration()),run_financial_p3_info_gain_bad_data_gate(make_corpus())

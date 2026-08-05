@@ -1,0 +1,7 @@
+from backend.amr.financial_p3_research_log_contract import ResearchLogSchema
+from backend.amr.financial_p3_research_log_config import collect_financial_p3_research_log_config
+from tests.fixtures.synthetic_financial_p3_info_gain_task_gate_cases import make_inputs,make_configuration
+from backend.amr.financial_p3_info_gain_task_gate import evaluate_financial_p3_info_gain_task_gate
+def make_inputs_for_log():
+ summary,bad=make_inputs();gate=evaluate_financial_p3_info_gain_task_gate(summary,bad,configuration=make_configuration());return ResearchLogSchema(),summary,bad,gate
+def make_snapshot():return collect_financial_p3_research_log_config(*make_inputs_for_log())

@@ -1,0 +1,4 @@
+from backend.amr.financial_p3_research_log_assembly import assemble_financial_p3_research_log_artifact
+from tests.fixtures.synthetic_financial_p3_research_log_serialization_cases import make_log
+def make_inputs():return make_log()
+def make_result():return assemble_financial_p3_research_log_artifact(make_inputs())
