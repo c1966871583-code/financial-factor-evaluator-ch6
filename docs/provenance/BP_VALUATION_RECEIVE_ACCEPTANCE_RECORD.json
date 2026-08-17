@@ -1,0 +1,79 @@
+{
+  "task_id": "BP-VALUATION-TASK8-RECEIVE",
+  "status": "BP_VALUATION_TASK8_RECEIVE_ACCEPTED",
+  "accepted_at_utc": "2026-08-14T07:31:45.6992451Z",
+  "decision_authority": "OPERATOR_AUTHORIZED_PIPELINE",
+  "source_authoritative_run_id": "rqdata-authoritative-20260812T023240Z-16b9b5eba2",
+  "package_id": "bp-valuation-72c7da759d94b24c734705a1",
+  "schema_version": "valuation_numeric_dedup_v1",
+  "factor_scope": [
+    "BP"
+  ],
+  "row_count": 90,
+  "security_count": 30,
+  "evaluation_date_count": 3,
+  "frequency": "evaluation_date_snapshot",
+  "package_status": "FROZEN",
+  "receive_validation": {
+    "status": "PASS",
+    "checks_passed": 13,
+    "checks_failed": 0,
+    "received_rows": 90,
+    "missing_rows": 0,
+    "duplicate_rows": 0,
+    "hash_drift_detected": false,
+    "validation_sha256": "f091adc4656a03192731defc8aa349169a5e6dd81c0097ef3caacf77f17bccb7"
+  },
+  "binding": {
+    "handoff_manifest_sha256": "10e6753f8f6f2353fdb0179571fb828eeb3e1cd8db6462675d6bc76faa210e6c",
+    "freeze_record_sha256": "53a7a71792bbbc623d47209ed7a51c8a69ad32e61bf7ca04752ab06bf7e3feb0",
+    "assembler_commit": "21c8700",
+    "receiver_commit": "acee7b0f923fb4273dec2bf367d4007c76078d4a",
+    "task8_quarterly_financial_contract_commit": "b55f9bb",
+    "task8_valuation_contract_commit": "f92dcde221659f8daed7ca991b1e263a532c6d91"
+  },
+  "bp_mapping": {
+    "provider": "RQData",
+    "provider_endpoint": "rqdatac.get_factor",
+    "provider_field": "book_to_market_ratio_lf",
+    "formula": "book_to_market_ratio_lf",
+    "reciprocal_validation": "1 / pb_ratio_lf where PB > 0",
+    "nonpositive_pb_policy": "MISSING_FAIL_CLOSED_NO_ABSOLUTE_VALUE",
+    "provider_date_equals_evaluation_date": true,
+    "staleness_status": "NOT_APPLICABLE"
+  },
+  "comparison_semantics": {
+    "approved_variant": "evaluation_factor_value",
+    "approved_methods": [
+      "spearman",
+      "pearson"
+    ],
+    "selection_or_admission_performed": false,
+    "direction_flip_performed": false,
+    "dedup_comparison_value_generated": false
+  },
+  "tests": {
+    "task8_full": {
+      "passed": 636,
+      "skipped": 4,
+      "failed": 0
+    },
+    "main_full": {
+      "passed": 670,
+      "skipped": 4,
+      "failed": 0
+    },
+    "valuation_and_financial_contract_focused": {
+      "passed": 13,
+      "failed": 0
+    }
+  },
+  "rqdata_queried_during_handoff_or_receive": false,
+  "frozen_quarterly_financial_p05_modified": false,
+  "chapter6_previous_acceptance_record_modified": false,
+  "chapter6_scope_extended": false,
+  "task8_ready_for_bp_valuation_scope": true,
+  "production_ready": false,
+  "research_conclusion": "research usable",
+  "next_authorized_step": "CHAPTER_6_BP_SCOPE_EXTENSION_REVIEW"
+}

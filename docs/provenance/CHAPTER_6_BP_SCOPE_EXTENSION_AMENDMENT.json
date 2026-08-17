@@ -1,0 +1,130 @@
+{
+  "task_id": "CHAPTER-6-BP-SCOPE-EXTENSION-REVIEW",
+  "amendment_id": "CHAPTER-6-BP-SCOPE-EXTENSION-01",
+  "record_type": "NON_DESTRUCTIVE_SCOPE_EXTENSION_AMENDMENT",
+  "status": "CHAPTER_6_BP_SCOPE_EXTENSION_ACCEPTED",
+  "decision_authority": "OPERATOR_AUTHORIZED_PIPELINE",
+  "accepted_at_utc": "2026-08-14T07:43:22.7707001Z",
+  "amends_record": {
+    "path": "docs/provenance/CHAPTER_6_FINAL_ACCEPTANCE_RECORD.json",
+    "sha256": "d91e03dc908863f84012f3083272fa71195ab0f812f140e564293364dbf90628",
+    "modified_in_place": false,
+    "original_quarterly_acceptance_preserved": true
+  },
+  "source_authoritative_run_id": "rqdata-authoritative-20260812T023240Z-16b9b5eba2",
+  "scope_model": "PARALLEL_FROZEN_CONTRACTS_NO_SCHEMA_COLLAPSE",
+  "expanded_acceptance_scope": {
+    "scope_type": "CONTROLLED_REAL_DATA_MULTI_CONTRACT_RESEARCH_PIPELINE",
+    "semantic_factors": [
+      "ROE_TTM_ENDING_EQUITY",
+      "OCF_NP",
+      "BP_LF"
+    ],
+    "machine_factor_ids": [
+      "ROE",
+      "OCF_NP",
+      "BP"
+    ],
+    "rows": 270,
+    "securities": 30,
+    "evaluation_dates": 3,
+    "task8_ready_for_expanded_scope": true
+  },
+  "parallel_contracts": {
+    "quarterly_financial": {
+      "package_id": "p05-financial-0e95e865a647bee1f9e61929",
+      "package_schema": "P05CandidateHandoffPackage-v1.0",
+      "task8_semantics": "financial_numeric_dedup_v1",
+      "semantic_factors": [
+        "ROE_TTM_ENDING_EQUITY",
+        "OCF_NP"
+      ],
+      "rows": 180,
+      "frequency": "quarterly_financial_pit",
+      "status": "FROZEN_AND_ACCEPTED",
+      "manifest_sha256": "ad09c411b4de3ef687b51fa86d6a9cf75fb2802f6d888126d68c75c681f03131"
+    },
+    "valuation": {
+      "package_id": "bp-valuation-72c7da759d94b24c734705a1",
+      "schema": "valuation_numeric_dedup_v1",
+      "semantic_factors": [
+        "BP_LF"
+      ],
+      "rows": 90,
+      "frequency": "evaluation_date_snapshot",
+      "status": "FROZEN_AND_TASK8_RECEIVE_ACCEPTED",
+      "manifest_sha256": "10e6753f8f6f2353fdb0179571fb828eeb3e1cd8db6462675d6bc76faa210e6c"
+    }
+  },
+  "bp_semantics": {
+    "provider": "RQData",
+    "provider_endpoint": "rqdatac.get_factor",
+    "provider_field": "book_to_market_ratio_lf",
+    "accepted_name": "BP_LF",
+    "formula": "book_to_market_ratio_lf",
+    "reciprocal_check": "1 / pb_ratio_lf where PB > 0",
+    "nonpositive_pb_policy": "MISSING_FAIL_CLOSED_NO_ABSOLUTE_VALUE",
+    "provider_date_equals_evaluation_date": true,
+    "report_period_required": false,
+    "publish_date_required": false,
+    "effective_date_required": false,
+    "staleness_status": "NOT_APPLICABLE"
+  },
+  "non_changes": {
+    "quarterly_p05_modified": false,
+    "base_chapter6_acceptance_modified": false,
+    "authoritative_snapshot_modified": false,
+    "financial_timing_policy_modified": false,
+    "forward_return_policy_modified": false,
+    "bp_coerced_into_quarterly_financial_schema": false,
+    "rqdata_requeried": false
+  },
+  "independent_validation": {
+    "status": "PASS",
+    "checks_passed": 11,
+    "checks_failed": 0,
+    "validation_artifact": "artifacts/chapter_6_bp_scope_extension/CHAPTER_6_BP_SCOPE_EXTENSION_VALIDATION.json",
+    "validation_sha256": "d056211f6483d9cf17f6bda0b281c9fc0bb81a10602ea182001989973bc7535c",
+    "hash_drift_detected": false
+  },
+  "tests": {
+    "main_full_suite": {
+      "passed": 691,
+      "skipped": 4,
+      "failed": 0
+    },
+    "task8_full_suite": {
+      "passed": 657,
+      "skipped": 4,
+      "failed": 0
+    }
+  },
+  "code_provenance": {
+    "bp_scope_validator_initial_commit": "babc4a7",
+    "bp_scope_validator_final_commit": "a695ebe4ae18df327e77ccd55b21bf942622b3b4",
+    "task8_valuation_contract_commit": "f92dcde221659f8daed7ca991b1e263a532c6d91",
+    "bp_handoff_assembler_commit": "21c870013414c4bc3a8c55e0c5b8373fe20c8342",
+    "bp_receive_validator_commit": "acee7b0f923fb4273dec2bf367d4007c76078d4a"
+  },
+  "production_gates": {
+    "independent_evidence_review": "PASS_FOR_EXPANDED_CONTROLLED_RESEARCH_SCOPE",
+    "real_data_contract_and_authorization": "PASS_FOR_EXPANDED_CONTROLLED_RESEARCH_SCOPE",
+    "pit_versions_and_historical_universe": "PARTIAL_LIMITED_TO_30_SECURITIES_AND_3_DATES",
+    "net_cost_out_of_sample_significance_and_reproducibility": "NOT_EVALUATED",
+    "overall": "NOT_PRODUCTION_READY"
+  },
+  "explicit_limitations": [
+    "The expanded acceptance remains limited to 30 securities and 3 evaluation dates.",
+    "BP_LF is an evaluation-date valuation snapshot and is not a quarterly FinancialBatch observation.",
+    "The quarterly financial P05 still contains only ROE_TTM_ENDING_EQUITY and OCF_NP.",
+    "The amendment does not establish full-market, net-of-cost, out-of-sample statistical significance.",
+    "No production, P05 rewrite, or historical-manifest rewrite is authorized by this amendment."
+  ],
+  "research_conclusion": "research usable",
+  "chapter6_scope_extended": true,
+  "chapter6_complete_for_expanded_controlled_research_scope": true,
+  "production_ready": false,
+  "next_work_requires_separate_authorization": [
+    "EXPANDED_FULL_MARKET_OUT_OF_SAMPLE_PRODUCTION_VALIDATION"
+  ]
+}

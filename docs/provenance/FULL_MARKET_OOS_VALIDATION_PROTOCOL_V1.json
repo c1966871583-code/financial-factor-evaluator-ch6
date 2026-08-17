@@ -1,0 +1,109 @@
+{
+  "protocol_id": "FULL_MARKET_OOS_VALIDATION_PROTOCOL_V1",
+  "status": "FROZEN",
+  "frozen_at_utc": "2026-08-14T08:10:00Z",
+  "purpose": "Production-gate validation of the accepted Chapter 6 ROE, OCF/NP and BP factor scope",
+  "source_acceptance": "CHAPTER-6-BP-SCOPE-EXTENSION-01",
+  "data_cutoff": "2025-12-31",
+  "factor_scope": [
+    "ROE_TTM_ENDING_EQUITY",
+    "OCF_NP",
+    "BP_LF"
+  ],
+  "history": {
+    "start": "2016-01-01",
+    "end": "2025-12-31",
+    "evaluation_frequency": "month_end_last_trading_session",
+    "expected_monthly_cross_sections": 120
+  },
+  "time_split": {
+    "method": "STRICT_CHRONOLOGICAL_NO_RANDOM_SPLIT",
+    "development": ["2016-01-01", "2020-12-31"],
+    "validation": ["2021-01-01", "2022-12-31"],
+    "final_oos": ["2023-01-01", "2025-12-31"],
+    "final_oos_locked_before_full_market_pull": true,
+    "oos_results_may_not_change_factor_direction_or_policy": true
+  },
+  "universe": {
+    "scope": "ALL_A_SHARES_POINT_IN_TIME",
+    "membership_rule": "listed on each evaluation date using historical provider metadata",
+    "include_historical_delisted_securities": true,
+    "exclude_non_equity_instruments": true,
+    "minimum_listing_age_market_sessions": 252,
+    "st_policy": "exclude ST, *ST and delisting-consolidation names using only formation-date status",
+    "financial_sector_policy": "included in primary analysis; additionally reported as separate robustness stratum",
+    "survivorship_filtering": "PROHIBITED",
+    "future_return_availability_filtering": "PROHIBITED"
+  },
+  "pit_and_factor_semantics": {
+    "financial_effective_date": "strictly next tradable session after publish_date",
+    "financial_record_selection": "latest effective revision known at evaluation_date",
+    "missing_publish_date": "EXCLUDE_FAIL_CLOSED",
+    "stale_policy": "reuse frozen Chapter 6 stale policy without recalibration on OOS",
+    "preprocessing": "reuse frozen MAD preprocessing without OOS recalibration",
+    "roe_registry_definition": "FORMULA_ROE_TTM_ENDING_EQUITY_V1",
+    "bp_frequency": "evaluation_date_snapshot",
+    "bp_nonpositive_pb": "MISSING_FAIL_CLOSED_NO_ABSOLUTE_VALUE"
+  },
+  "return_contract": {
+    "horizon_market_sessions": 20,
+    "entry": "evaluation-date adjusted close",
+    "exit": "t_plus_20_market_session adjusted close",
+    "adjustment": "RQData pre-adjusted close",
+    "endpoint_suspension_or_missing_price": "NaN with audit reason; no rolling, filling or interpolation",
+    "delisting": "auditable termination value or explicit NaN",
+    "formation_universe_frozen_before_label_availability": true
+  },
+  "portfolio_evidence": {
+    "primary_sort": "five equal-count factor quantiles per evaluation date",
+    "weights": "equal weight within quantile",
+    "rebalance": "monthly at frozen evaluation dates",
+    "long_only_primary": "Q5 high-factor portfolio",
+    "long_short_diagnostic_only": "Q5 minus Q1; no shortability claim",
+    "turnover": "one-way weight turnover from pre-trade to target weights",
+    "capacity": "report 20-day ADV and flag trades above 10 percent participation"
+  },
+  "cost_policy": {
+    "policy_id": "CN_A_SHARE_DATE_EFFECTIVE_COST_V1",
+    "broker_commission_bps_each_side": 3.0,
+    "broker_commission_semantics": "research assumption inclusive of exchange handling and regulatory fees",
+    "transfer_fee_bps_each_side": [
+      {"through": "2022-04-28", "bps": 0.2},
+      {"from": "2022-04-29", "bps": 0.1}
+    ],
+    "stamp_duty_sell_only_bps": [
+      {"through": "2023-08-27", "bps": 10.0},
+      {"from": "2023-08-28", "bps": 5.0}
+    ],
+    "slippage_scenarios_bps_each_side": {"base": 5.0, "stress": 10.0},
+    "minimum_broker_ticket_fee": "NOT_APPLIED_IN_INSTITUTIONAL_WEIGHT_BACKTEST"
+  },
+  "statistics": {
+    "primary_metric": "RankIC",
+    "secondary_metrics": ["Pearson_IC", "ICIR", "HAC_t", "coverage", "quantile_returns", "monotonicity", "turnover", "net_returns"],
+    "multiple_testing": "Benjamini-Hochberg FDR across the three-factor registered family",
+    "confidence_interval": "12-month moving-block bootstrap with 10000 replications",
+    "bootstrap_seed": 20260814,
+    "negative_dates_may_not_be_deleted": true,
+    "sample_or_period_reselection_after_results": false
+  },
+  "production_gates": [
+    "independent evidence review",
+    "real-data contract and authorization",
+    "PIT versions and historical universe",
+    "net-of-cost final-OOS significance and reproducibility"
+  ],
+  "cost_policy_sources": [
+    "https://www.mof.gov.cn/zhengwuxinxi/caizhengxinwen/200809/t20080919_76432.htm",
+    "https://fgk.chinatax.gov.cn/zcfgk/c102416/c5211343/content.html",
+    "https://www.news.cn/2022-04/28/c_1128605983.htm",
+    "https://www.sse.com.cn/services/tradingservice/charge/ssecharge/",
+    "https://investor.szse.cn/marketServices/deal/payFees/index.html"
+  ],
+  "governance": {
+    "protocol_changes_require_new_version": true,
+    "full_market_pull_must_be_chunked_and_checkpointed": true,
+    "no_automatic_scope_expansion": true,
+    "production_ready_default": false
+  }
+}

@@ -1,86 +1,36 @@
-# AMR财务因子有效性检测：FIN-R1A交易时间治理
+# AMR财务因子有效性检测
 
-> **实现版本**：`FIN-R1A-CONSERVATIVE-v1.0`  
-> **状态**：`FIN-R1A = COMPLETE`  
-> **适用HEAD**：`f957d02f2f2d97606e2ed40d44f985b05f2ac31a`
+轨道 M 的冻结检验族、独立形成日历、逐行血缘和多重检验实现见
+[`AMR_FINANCIAL_TRACK_M_START.md`](AMR_FINANCIAL_TRACK_M_START.md)。
 
-## 1. 范围
+## 1. 模块定位
 
-FIN-R1A只治理财务信息何时可以进入评价截面：
+本模块在冻结的`EvaluationInputBundle`、`FinancialBatch`和
+`ForwardReturnBatch`之上补充财务因子专用PIT对齐与有效性检测。
 
-```text
-公告日期或可信公告时间
-→ 市场时段分类
-→ 公告后首个实际交易日
-→ effective_date
-→ timing_audit
-```
+模块只输出有效性证据，不直接作因子准入判断，也不执行用户提交的动态公式。
 
-本阶段不实现真实Provider、来源血缘、独立样本、财务因子公式、统计评价、Supabase
-写入或准入决定。
+## 2. 接入入口
 
-## 2. 冻结时间策略
-
-时区固定为`Asia/Shanghai`。CH6-G0没有批准“可信盘前公告当日生效”，所以所有
-公告均采用公告日期之后的首个实际交易日：
-
-| 场景 | `effective_date` |
-|---|---|
-| 交易日盘前 | 下一实际交易日 |
-| 交易日盘中 | 下一实际交易日 |
-| 交易日盘后 | 下一实际交易日 |
-| 只有公告日期 | 公告日之后首个交易日 |
-| 周末或节假日 | 公告日之后首个交易日 |
-| 日历没有后续交易日 | `blocked` |
-| 时间戳、时区不可核验 | `blocked` |
-
-公告时间戳存在时必须显式声明`announcement_timezone=Asia/Shanghai`。带时区偏移的
-时间戳必须与上海时区一致。
-
-## 3. 实现接口
-
-`backend.amr.financial_timing`提供：
+统一调度：
 
 ```python
-policy = FinancialTimingPolicy(
-    trading_days=("2024-01-05", "2024-01-08", "2024-01-09"),
-    trading_calendar_version="synthetic-calendar-v1",
-)
+from backend.amr.evaluation_pipeline import evaluate_bundle
 
-audit = evaluate_financial_timing(
-    FinancialTimingObservation(
-        code="SYN001",
-        publish_date="2024-01-05",
-        announcement_timestamp="2024-01-05T16:00:00+08:00",
-        announcement_timezone="Asia/Shanghai",
-        statement_version="original",
-        source_record_id="synthetic-001",
-    ),
-    policy,
-)
+run = evaluate_bundle(bundle, horizon="20")
 ```
 
-审计字段包括：
+调度规则：
 
-```text
-timing_policy_version
-trading_calendar_version
-timezone
-publish_date
-announcement_timestamp
-timestamp_quality
-market_session_classification
-derived_effective_date
-provided_effective_date
-effective_date_validation_status
-decision_reason_code
-return_start_validation_status
-overall_status
-errors
-```
+- `price_volume`：调用原有量价对齐和评估；
+- `financial`：调用财务PIT对齐，再复用公共统计和统一结果结构；
+- `macro`：当前返回`not_applicable`。
 
-`backend.amr.financial_source_adapter`只接受已经计算出的`factor_value`，全量记录通过
-后才构造公共`FinancialBatch`。公共输出字段保持不变：
+## 3. 财务时点规则
+
+### 3.1 冻结输入
+
+`FinancialBatch`必须包含：
 
 ```text
 code
@@ -90,99 +40,154 @@ effective_date
 factor_value
 ```
 
-输入顺序不影响规范化输出、输入指纹、审计指纹或输出指纹。
+模块不修改冻结契约，不重新计算或执行因子公式。
 
-## 4. 失败闭锁
+### 3.2 评价日
 
-以下情况不产生部分`FinancialBatch`：
+首版使用月末截面。对于未来收益数据中每个自然月，选择最后一个可用日期。
+这样可避免将同一份低频财务数据每日重复计入IC序列。
 
-- 缺少交易日历或日历没有公告后的交易日；
-- 公告时间戳、时区或日期关系非法；
-- 提供的生效日早于公告或与冻结策略不一致；
-- 收益起点早于生效日；
-- 同一来源记录ID重复；
-- 多条记录映射到同一公共业务键；
-- 同一报表版本重复；
-- 动态公式或可执行代码字段非空；
-- `synthetic_test_only`不是`true`；
-- 公共`FinancialBatch`契约校验失败。
+### 3.3 PIT选择
 
-修订公告按自身公告时间重新计算。原始记录和修订记录映射到不同生效日时，两条历史
-都会保留；若后续版本未形成严格更晚的生效日，则以
-`REVISION_EFFECTIVE_DATE_INVALID`阻断，不静默覆盖。
+对于每个评价日和证券：
 
-## 5. 测试
+1. 排除`effective_date > evaluation_date`的记录；
+2. 同一报告期有多个版本时，选择当时已经生效的最新版本；
+3. 在可用报告期中选择最新报告期；
+4. 不使用未来版本回填历史；
+5. 每个证券独立选择，允许异步披露。
+
+### 3.4 陈旧数据
+
+```text
+data_age_days = evaluation_date - report_period
+```
+
+超过`max_data_age_days`的记录不进入有效样本，并输出
+`STALE_FINANCIAL_DATA_EXCLUDED`。
+
+### 3.5 审计信息
+
+`FinancialTimingAudit`记录：
+
+- 原始财务行数；
+- 实际月末评价日；
+- 选中快照行数；
+- 被排除的未来记录数；
+- 被排除的陈旧记录数；
+- 被折叠的旧修订行数；
+- 被淘汰的旧报告期行数；
+- 缺失因子值数量；
+- 时点问题代码。
+
+## 4. 首版指标
+
+首版复用公共结果`SecurityLevelEvaluationResult`：
+
+- Pearson IC；
+- Rank IC；
+- IC均值、标准差、ICIR；
+- HAC调整t值；
+- IC正向比例；
+- IC滚动稳定性；
+- 分位数组收益；
+- High-Low收益；
+- 分组单调性；
+- 有效日期、排除日期和样本数；
+- 明确的状态和问题代码。
+
+财务因子进入公共统计前，按月度截面执行MAD缩尾，同时保留
+`raw_factor_value`用于审计。
+
+## 5. 方法选择依据
+
+| 方法 | 选择依据 |
+|---|---|
+| 月末评价 | 避免低频财务值日度重复 |
+| Rank IC | 适应厚尾和非线性尺度 |
+| Pearson IC | 诊断线性关系与极端值影响 |
+| HAC t值 | 修正IC时间序列自相关 |
+| 分组收益 | 补充经济量级和单调性 |
+| 覆盖率 | 反映异步披露、缺失和陈旧排除 |
+| MAD | 降低财务比率极端值影响 |
+
+## 6. 暂缓方法
+
+| 方法 | 暂缓原因 |
+|---|---|
+| 行业/市值中性化 | 冻结输入当前不包含行业及市值控制序列 |
+| Fama-MacBeth | 同样缺少统一控制变量契约 |
+| 公告事件研究 | 异步事件与重叠窗口复杂，首版采用月末截面 |
+| 动态因子权重 | 属于组合构建，不属于有效性检测 |
+| 复杂非线性模型 | 首版优先可解释性和确定性 |
+
+## 7. 状态语义
+
+- 无未来收益：`not_run`；
+- 类型不适用：`not_applicable`；
+- 无PIT快照、无匹配、常数因子或样本不足：Gate为`blocked`；
+- 陈旧数据、低覆盖、日期不足或截面偏小：Gate为`warning`；
+- 有部分日期不可评估：结果为`partial`；
+- 全部有效日期完成：结果为`completed`。
+
+这些状态仅描述检测是否可执行及证据质量，不等于准入结论。
+
+## 8. 测试
 
 定向测试：
 
 ```powershell
-python -m pytest tests/test_amr_financial_timing.py -q
+.\.venv\Scripts\python.exe -m pytest `
+  tests/test_amr_financial_evaluation.py `
+  tests/test_amr_financial_track_m.py -q
 ```
 
-权威回归：
+项目主测试目录回归：
 
 ```powershell
-python -m pytest research_core/factor_lab/ tests/ -v --tb=short
+.\.venv\Scripts\python.exe -m pytest tests -q
 ```
 
-测试数据全部来自：
+所有测试均使用明确标记为`synthetic_test_only`的合成数据，不连接生产数据。
+2026-07-29实测结果为`24 passed`；主测试目录回归为
+`611 passed, 4 skipped`。
 
-```text
-tests/fixtures/synthetic_financial_timing_cases.py
-synthetic_test_only=true
-```
+## 9. 已知限制
 
-2026-07-30验收结果：
+- 月末由未来收益数据中的最后可用日期决定；
+- 财务覆盖率以所选月末未来收益股票池为分母；
+- 陈旧阈值需要结合业务口径进一步校准；
+- 当前不处理盘中公告时间；
+- 当前不做行业和市值中性化；
+- 当前不构造财务因子，只评估冻结契约中的`factor_value`；
+- 全仓无约束pytest存在项目既有收集问题，应以`tests/`为主回归入口。
 
-```text
-定向测试:
-43 passed
+## 10. 已冻结的 Financial Timing Contract
 
-权威回归:
-648 collected
-644 passed
-4 skipped
-0 failed
+本节由 Operator 在 `FIN-RQDATA-CONTRACT-OPERATOR-FREEZE-27` 中批准，状态为
+`FROZEN`。`FinancialTimingPolicy` 使用带版本与哈希的 RQData 中国市场交易日历，
+并记录 provider、scope、起止日期、snapshot/version 与 SHA256。
 
-协作指南宽口径回归:
-655 collected
-651 passed
-4 skipped
-0 failed
-```
+- `effective_date` 是严格晚于 `publish_date` 的第一个市场交易日；公告日即使是交易日也不可同日生效。
+- 最终不变量是 `report_period <= publish_date < effective_date`。
+- 缺失 `publish_date` 的记录以 `MISSING_PUBLISH_DATE` 进入 audit，不得进入 PIT-valid batch，且不得用固定滞后代理。
+- 修订、重述与更正公告各自作为新的信息事件，分别保留 `publish_date` 并计算自己的 `effective_date`；历史评价日只能选择当时已生效的最新版本。
+- 日历无法覆盖公告日或下一交易日时返回 `TIMING_CALENDAR_RANGE_INSUFFICIENT`，禁止 weekday 或自然日外推。
+- 评价日只有在 `effective_date <= evaluation_date` 时才能看到该版本。
 
-三组测试均保留原有`273 warnings`，来源为既有NumPy相关性计算和
-`evaluation_alignment.py`的DataFrame索引警告；FIN-R1A没有新增失败或跳过。
+## 11. 已冻结的 Financial Forward Return Contract
 
-## 6. 未授权边界
+本节同样由 Operator 批准，状态为 `FROZEN`，用于财务因子横截面 IC / RankIC：
 
-- 不修改源main工作树；
-- 不创建或切换分支；
-- 不执行commit、push、pull、merge或主仓回迁；
-- 不访问生产数据；
-- 不连接或写入Supabase；
-- 不执行动态公式；
-- 不把时间治理通过解释为因子有效或可准入。
+- 固定 horizon 为 20 个市场交易 session，entry 为评价日收盘，exit 为同一版本市场日历上的 `t+20` 收盘；entry 不计入 20 个 forward sessions。
+- 不是 20 个个股有效观测行，不因停牌、缺价或退市改变 scheduled exit date，也不 roll forward/backward。
+- entry 和 exit 均使用一致的公司行动调整后 `close`。RQData 3.5.2 adapter 映射冻结为 `fields=['close','volume']`、`adjust_type='pre'`、`skip_suspended=True`；builder 按版本化市场日历重新对齐，缺行保持缺失而非缩短 horizon。运行 provenance 必须记录 provider field、adjustment mode 与完整 adapter mapping。
+- entry 必须有合法收盘价、明确可交易状态和正的可交易观测；不满足时返回 NaN 并记录标准原因。
+- entry/exit 缺价、entry/exit 停牌均返回 NaN；中途停牌但两个固定端点有效时仍可计算。
+- 禁止 ffill、bfill、插值、最近价格替代以及任何基于未来可用性的样本重选。
+- 若 `entry_date < delisting_date <= scheduled_exit_date`，优先使用可审计的退市结算/终止价值；不可获得时返回 NaN 和 `DELISTING_RETURN_UNAVAILABLE`，并分别报告退市总数、可计算数与不可计算数。
+- factor formation universe 必须先于 label availability 固定。IC/RankIC 仅使用 formation sample 与有效 label 的当期交集，同时报告 formation、valid、excluded、coverage 和 exclusion-reason 分布。
 
-## 7. FIN-R1A验收结论
-
-| 验收项 | 结果 | 证据 |
-|---|---|---|
-| 盘前、盘中、盘后、周末、长假和仅日期场景 | `PASS` | 合成参数化测试 |
-| 缺失日历、非法时间戳和未核验时区阻断 | `PASS` | 稳定原因码断言 |
-| 提供生效日早于公告或与策略不一致时阻断 | `PASS` | 生效日失败测试 |
-| 收益起点不早于生效日 | `PASS` | 前置阻断和同日通过测试 |
-| 修订不提前且不覆盖历史 | `PASS` | 双版本保留及冲突闭锁测试 |
-| 输入不被原地修改 | `PASS` | 深拷贝前后比较 |
-| 输入乱序不改变输出和指纹 | `PASS` | 正序/逆序一致性测试 |
-| 公共`FinancialBatch`字段不变 | `PASS` | 精确列断言 |
-| 量价路径无回归 | `PASS` | 权威全量回归 |
-| 无生产数据、网络、Supabase或动态执行 | `PASS` | 合成标志与AST安全测试 |
-| 文件边界 | `PASS` | 5个白名单文件，0个保护文件改动 |
-
-最终判断：
-
-```text
-FIN-R1A = COMPLETE
-FIN-R1B = NOT_STARTED / REQUIRES_NEW_FILE_BOUNDARY_AUTHORIZATION
-```
+标准 audit reason 至少包括 `ENTRY_PRICE_MISSING`、`EXIT_PRICE_MISSING`、
+`ENTRY_NOT_TRADABLE`、`ENTRY_SUSPENDED_OR_UNPRICED`、
+`EXIT_SUSPENDED_OR_UNPRICED` 和 `DELISTING_RETURN_UNAVAILABLE`。

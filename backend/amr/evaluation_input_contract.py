@@ -155,6 +155,11 @@ def _validate_date_order(series_a: pd.Series, series_b: pd.Series, a_label: str,
         raise EvaluationInputContractError("INVALID_DATE_ORDER", f"{a_label} must be <= {b_label}", field_name=f"{a_label},{b_label}")
 
 
+def _validate_strict_date_order(series_a: pd.Series, series_b: pd.Series, a_label: str, b_label: str) -> None:
+    if (series_a >= series_b).any():
+        raise EvaluationInputContractError("INVALID_DATE_ORDER", f"{a_label} must be < {b_label}", field_name=f"{a_label},{b_label}")
+
+
 # ---------------------------------------------------------------------------
 # PriceVolumeBatch
 # ---------------------------------------------------------------------------
@@ -239,14 +244,14 @@ class FinancialBatch:
         if missing:
             raise EvaluationInputContractError("MISSING_REQUIRED_COLUMN", f"Missing columns: {missing}", field_name=",".join(missing))
 
-        _validate_key_not_null(frame, list(self._KEY_COLS))
+        _validate_key_not_null(frame, ["code", "report_period", "publish_date", "effective_date"])
         _validate_numeric_strict(frame["factor_value"], "factor_value")
 
         rp = pd.to_datetime(frame["report_period"], errors="raise")
         pd_date = pd.to_datetime(frame["publish_date"], errors="raise")
         ed = pd.to_datetime(frame["effective_date"], errors="raise")
         _validate_date_order(rp, pd_date, "report_period", "publish_date")
-        _validate_date_order(pd_date, ed, "publish_date", "effective_date")
+        _validate_strict_date_order(pd_date, ed, "publish_date", "effective_date")
         _validate_no_duplicates(frame, list(self._KEY_COLS))
 
         object.__setattr__(self, "_frame", frame)
@@ -355,6 +360,9 @@ class ForwardReturnBatch:
         _validate_dates(frame["date"], "date")
         _validate_key_not_null(frame, key_cols)
         _validate_numeric_strict(frame["forward_return"], "forward_return")
+        horizon_values = pd.to_numeric(frame["horizon"], errors="raise")
+        if horizon_values.isna().any() or (horizon_values < 1).any() or (horizon_values % 1 != 0).any():
+            raise EvaluationInputContractError("INVALID_HORIZON", "horizon must be a positive integer", field_name="horizon")
         _validate_no_duplicates(frame, key_cols)
 
         object.__setattr__(self, "_frame", frame)
