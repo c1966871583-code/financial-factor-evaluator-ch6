@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import numpy as np
@@ -137,7 +137,7 @@ def main() -> int:
     prefreeze_manifest_hash = sha256(manifest_path)
     freeze_core = {
         "freeze_status": "FROZEN", "package_id": manifest["package_id"],
-        "freeze_timestamp_utc": datetime.now(timezone.utc).isoformat(),
+        "freeze_timestamp_utc": datetime.now(UTC).isoformat(),
         "source_authoritative_run_id": manifest["source_authoritative_run_id"],
         "input_row_count": 180, "accepted_row_count": 180,
         "dataset_hash": manifest["dataset_hash"], "lineage_hash": manifest["lineage_hash"],

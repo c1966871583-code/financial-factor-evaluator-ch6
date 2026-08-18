@@ -8,7 +8,7 @@ import json
 import platform
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -60,7 +60,7 @@ def load_policy(name: str) -> dict[str, Any]:
 def git_commit() -> str:
     try:
         return subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=PROJECT, text=True).strip()
-    except Exception:
+    except (OSError, subprocess.CalledProcessError):
         return "UNKNOWN"
 
 
@@ -178,7 +178,7 @@ def instrument_table(codes: list[str]) -> pd.DataFrame:
     for item in objects:
         rows.append(
             {
-                "code": str(getattr(item, "order_book_id")),
+                "code": str(item.order_book_id),
                 "listed_date": str(getattr(item, "listed_date", "")),
                 "de_listed_date": str(getattr(item, "de_listed_date", "")),
                 "instrument_status": str(getattr(item, "status", "UNKNOWN")),
@@ -411,7 +411,7 @@ def main() -> int:
     market.to_parquet(market_path, index=False)
 
     run_seed = stable_hash({"codes": codes, "dates": EVALUATION_DATES, "financial_hash": file_hash(financial_path), "market_hash": file_hash(market_path), "policies": [stale, preprocessing, sample_policy]})
-    run_id = f"rqdata-authoritative-{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}-{run_seed[:10]}"
+    run_id = f"rqdata-authoritative-{datetime.now(UTC).strftime('%Y%m%dT%H%M%SZ')}-{run_seed[:10]}"
     financial_rows, timing_audit, revision_history = build_financial_factor_rows(
         financial_wide, timing_policy, mask, preprocessing, stale
     )
@@ -432,7 +432,7 @@ def main() -> int:
         "run_type": "AUTHORITATIVE_UPSTREAM_SNAPSHOT_CANDIDATE",
         "provider": "RQData", "provider_version": "rqdatac 3.5.2", "rqdatac_version": "3.5.2",
         "run_id": run_id, "authoritative_run_id": run_id,
-        "created_at_utc": datetime.now(timezone.utc).isoformat(), "code_commit": git_commit(),
+        "created_at_utc": datetime.now(UTC).isoformat(), "code_commit": git_commit(),
         "python_version": platform.python_version(),
         "factor_scope": ["ROE", "BP", "OCF_NP"],
         "security_scope": {"index": INDEX_ID, "universe_date": UNIVERSE_DATE, "selection": "sorted first 30", "count": len(codes)},
@@ -489,7 +489,7 @@ def resume_from_authoritative_raw() -> int:
     financial_path = RAW / "financial_source_raw.parquet"
     market_path = RAW / "market_reference_raw.parquet"
     run_seed = stable_hash({"codes": sorted(mask["code"].unique()), "dates": EVALUATION_DATES, "financial_hash": file_hash(financial_path), "market_hash": file_hash(market_path), "policies": [stale, preprocessing, sample_policy]})
-    run_id = f"rqdata-authoritative-{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}-{run_seed[:10]}"
+    run_id = f"rqdata-authoritative-{datetime.now(UTC).strftime('%Y%m%dT%H%M%SZ')}-{run_seed[:10]}"
     financial_rows, timing_audit, revision_history = build_financial_factor_rows(financial_wide, timing_policy, mask, preprocessing, stale)
     bp_rows = build_bp_rows(market, mask, preprocessing, stale)
     combined, lineage = add_lineage_hashes(pd.concat([financial_rows, bp_rows], ignore_index=True, sort=False), run_id)
@@ -505,7 +505,7 @@ def resume_from_authoritative_raw() -> int:
     manifest = {
         "run_type": "AUTHORITATIVE_UPSTREAM_SNAPSHOT_CANDIDATE", "provider": "RQData",
         "provider_version": "rqdatac 3.5.2", "rqdatac_version": "3.5.2", "run_id": run_id,
-        "authoritative_run_id": run_id, "created_at_utc": datetime.now(timezone.utc).isoformat(),
+        "authoritative_run_id": run_id, "created_at_utc": datetime.now(UTC).isoformat(),
         "code_commit": git_commit(), "python_version": platform.python_version(),
         "factor_scope": ["ROE", "BP", "OCF_NP"],
         "security_scope": {"index": INDEX_ID, "universe_date": UNIVERSE_DATE, "selection": "sorted first 30", "count": int(mask["code"].nunique())},

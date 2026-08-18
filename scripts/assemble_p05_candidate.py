@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import subprocess
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pandas as pd
@@ -31,7 +31,7 @@ def stable_hash(value: object) -> str:
 def git_commit() -> str:
     try:
         return subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=PROJECT, text=True).strip()
-    except Exception:
+    except (OSError, subprocess.CalledProcessError):
         return "UNKNOWN"
 
 
@@ -94,7 +94,7 @@ def main() -> int:
         "dedup_comparison_value_generated": False,
         "selection_or_admission_performed": False,
     }
-    created_at = datetime.now(timezone.utc).isoformat()
+    created_at = datetime.now(UTC).isoformat()
     package_core = {
         "schema_version": SCHEMA_VERSION,
         "semantic_policy_content_hash": SEMANTICS_HASH,

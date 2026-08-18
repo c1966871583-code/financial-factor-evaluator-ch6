@@ -6,7 +6,6 @@ import hashlib
 import json
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 
 PROJECT = Path(__file__).resolve().parents[1]

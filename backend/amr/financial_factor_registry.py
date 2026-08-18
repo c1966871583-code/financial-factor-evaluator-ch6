@@ -7,8 +7,8 @@ names and formula versions are resolved through one fail-closed definition.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 import re
+from dataclasses import dataclass
 
 
 def _normalize(value: str) -> str:

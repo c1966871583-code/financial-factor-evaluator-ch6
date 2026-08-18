@@ -6,12 +6,11 @@ import hashlib
 import json
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
-
 
 PROJECT = Path(__file__).resolve().parents[1]
 AUTH = PROJECT / "artifacts" / "authoritative_financial_snapshot"
@@ -185,7 +184,7 @@ def main() -> int:
     pre_freeze_manifest = {
         **package,
         "status": "VALIDATED_CANDIDATE",
-        "created_at_utc": datetime.now(timezone.utc).isoformat(),
+        "created_at_utc": datetime.now(UTC).isoformat(),
         "code_commit": main_commit,
         "task8_contract_commit": task8_commit,
         "source_snapshot_hash": auth["authoritative_factor_rows_sha256"],

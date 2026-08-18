@@ -4,9 +4,8 @@ from __future__ import annotations
 
 import hashlib
 import json
-import platform
 import subprocess
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import numpy as np
@@ -33,7 +32,7 @@ def canonical_hash(frame: pd.DataFrame) -> str:
 def git_commit() -> str:
     try:
         return subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=PROJECT, text=True).strip()
-    except Exception:
+    except (OSError, subprocess.CalledProcessError):
         return "UNKNOWN"
 
 
@@ -131,7 +130,7 @@ def main() -> int:
     )
     qualification_audit.to_csv(OUTPUT / "factor_qualification_audit.csv", index=False, encoding="utf-8")
 
-    generated_at = datetime.now(timezone.utc).isoformat()
+    generated_at = datetime.now(UTC).isoformat()
     handoff_manifest = {
         "handoff_type": "QUALIFIED_FINANCIAL_HANDOFF_INPUTS",
         "source_authoritative_run_id": RUN_ID,

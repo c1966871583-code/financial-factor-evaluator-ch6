@@ -8,12 +8,11 @@ from __future__ import annotations
 
 import copy
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
 import pandas as pd
-
 
 # ---------------------------------------------------------------------------
 # Enums
@@ -61,7 +60,7 @@ class EvaluationInputContractError(ValueError):
         self.details = details or {}
 
     def to_issue(self, severity: ValidationSeverity = ValidationSeverity.ERROR,
-                 row_count: int | None = None) -> "ValidationIssue":
+                 row_count: int | None = None) -> ValidationIssue:
         return ValidationIssue(
             code=self.code, severity=severity, message=str(self),
             field_name=self.field_name, row_count=row_count,
@@ -397,7 +396,7 @@ class ValidationReport:
     warnings: list[ValidationIssue] = field(default_factory=list)
     infos: list[ValidationIssue] = field(default_factory=list)
     readiness_stages: set[ReadinessStage] = field(default_factory=set)
-    checked_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    checked_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
     schema_version: str = "1.0"
 
     def __post_init__(self) -> None:

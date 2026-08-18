@@ -6,7 +6,6 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Literal
 
-
 Side = Literal["buy", "sell"]
 CostScenario = Literal["base", "stress"]
 

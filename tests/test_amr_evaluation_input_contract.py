@@ -1,5 +1,7 @@
 """P0-3A-STEP1A: Tests for evaluation_input_contract (corrected)."""
 
+from dataclasses import FrozenInstanceError
+
 import pandas as pd
 import pytest
 
@@ -18,7 +20,6 @@ from backend.amr.evaluation_input_contract import (
     ValidationSeverity,
     ValueScope,
 )
-
 
 # ===================================================================
 # Enums
@@ -106,7 +107,7 @@ class TestFactorRecord:
     def test_frozen(self):
         r = FactorRecord(factor_id="a", factor_name="x", factor_type=FactorType.MACRO,
                          value_scope=ValueScope.MARKET_LEVEL, frequency="m", version="v1", source="t")
-        with pytest.raises(Exception):
+        with pytest.raises(FrozenInstanceError):
             r.factor_id = "hacked"  # type: ignore[misc]
 
 

@@ -14,20 +14,19 @@ from __future__ import annotations
 
 import hashlib
 import json
-import math
 import platform
 import subprocess
 import sys
 import time
 import uuid
-from datetime import datetime, timezone
+from collections.abc import Callable
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 import numpy as np
 import pandas as pd
 import rqdatac
-
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
@@ -69,7 +68,8 @@ def _provider_call(label: str, fn: Callable[[], Any]) -> Any:
     for attempt in range(4):
         try:
             return fn()
-        except Exception as exc:
+        # RQData raises provider-defined runtime exceptions across this boundary.
+        except Exception as exc:  # noqa: BLE001
             message = str(exc).lower()
             temporary = any(
                 token in message
@@ -103,7 +103,7 @@ def _git_commit() -> str:
         return subprocess.check_output(
             ["git", "rev-parse", "HEAD"], cwd=PROJECT_ROOT, text=True, stderr=subprocess.DEVNULL
         ).strip()
-    except Exception:
+    except (OSError, subprocess.CalledProcessError):
         return "UNKNOWN"
 
 
@@ -346,8 +346,8 @@ def main() -> int:
     for directory in (RAW_DIR, AUDIT_DIR, PROCESSED_DIR):
         directory.mkdir(parents=True, exist_ok=True)
 
-    run_id = f"rqdata-shadow-{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}-{uuid.uuid4().hex[:8]}"
-    created_at = datetime.now(timezone.utc).isoformat()
+    run_id = f"rqdata-shadow-{datetime.now(UTC).strftime('%Y%m%dT%H%M%SZ')}-{uuid.uuid4().hex[:8]}"
+    created_at = datetime.now(UTC).isoformat()
 
     try:
         _provider_call("init", rqdatac.init)
@@ -467,8 +467,8 @@ def main() -> int:
     )
     quality = {
         "raw_row_count": int(len(financial_raw) + len(market_raw)),
-        "raw_financial_row_count": int(len(financial_raw)),
-        "raw_market_row_count": int(len(market_raw)),
+        "raw_financial_row_count": len(financial_raw),
+        "raw_market_row_count": len(market_raw),
         "processed_row_count": 0,
         "security_count": int(financial_raw["code"].nunique()),
         "factor_count": int(mapped_count),
@@ -497,9 +497,9 @@ def main() -> int:
         "status": status,
         "requested_security_count": SECURITY_COUNT,
         "returned_security_count": int(financial_raw["code"].nunique()),
-        "raw_financial_rows": int(len(financial_raw)),
-        "raw_market_rows": int(len(market_raw)),
-        "spot_check_count": int(len(spot)),
+        "raw_financial_rows": len(financial_raw),
+        "raw_market_rows": len(market_raw),
+        "spot_check_count": len(spot),
         "spot_check_mismatch_count": mismatch_count,
         "invalid_report_publish_order_count": invalid_pit,
         "non_finite_factor_value_count": non_finite_count,
@@ -549,7 +549,7 @@ def main() -> int:
         "real_data_acceptance": {
             "status": "PASS",
             "raw_row_count": int(len(financial_raw) + len(market_raw)),
-            "source_spot_check_count": int(len(spot)),
+            "source_spot_check_count": len(spot),
             "source_spot_check_mismatch_count": mismatch_count,
             "pit_invalid_order_count": invalid_pit,
         },

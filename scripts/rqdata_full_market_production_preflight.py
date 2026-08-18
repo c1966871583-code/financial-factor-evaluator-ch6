@@ -10,13 +10,13 @@ from __future__ import annotations
 import importlib.metadata
 import json
 import time
-from datetime import datetime, timezone
+from collections.abc import Callable
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 import pandas as pd
 import rqdatac
-
 
 PROJECT = Path(__file__).resolve().parents[1]
 OUT = PROJECT / "artifacts" / "full_market_oos_validation" / "preflight"
@@ -35,7 +35,8 @@ def provider_call(category: str, fn: Callable[[], Any]) -> Any:
     for attempt in range(4):
         try:
             return fn()
-        except Exception as exc:
+        # RQData raises provider-defined runtime exceptions across this boundary.
+        except Exception as exc:  # noqa: BLE001
             if type(exc).__name__ == "QuotaExceeded":
                 raise PreflightBlocked("PROVIDER_QUOTA_EXCEEDED") from None
             text = str(exc).lower()
@@ -63,7 +64,7 @@ def main() -> int:
     result: dict[str, Any] = {
         "task_id": "RQDATA-FULL-MARKET-PRODUCTION-PREFLIGHT",
         "protocol_id": protocol["protocol_id"],
-        "started_at_utc": datetime.now(timezone.utc).isoformat(),
+        "started_at_utc": datetime.now(UTC).isoformat(),
         "rqdatac_version": EXPECTED_RQDATAC_VERSION,
         "real_data_query_performed": False,
         "full_market_historical_pull_performed": False,
@@ -120,7 +121,7 @@ def main() -> int:
         eligible = eligible.loc[eligible["listed_date"] <= pd.Timestamp("2024-01-01")]
         if eligible.empty:
             raise PreflightBlocked("NO_SCHEMA_PROBE_SECURITY")
-        probe_code = str(sorted(eligible["order_book_id"].astype(str))[0])
+        probe_code = str(min(eligible["order_book_id"].astype(str)))
 
         financial = provider_call(
             "PIT_FINANCIAL_SCHEMA_UNAVAILABLE",
@@ -209,7 +210,7 @@ def main() -> int:
         passed = all(checks.values())
         result.update(
             {
-                "completed_at_utc": datetime.now(timezone.utc).isoformat(),
+                "completed_at_utc": datetime.now(UTC).isoformat(),
                 "checks": checks,
                 "checks_passed": sum(checks.values()),
                 "checks_failed": len(checks) - sum(checks.values()),
@@ -228,7 +229,7 @@ def main() -> int:
         )
         result.update(
             {
-                "completed_at_utc": datetime.now(timezone.utc).isoformat(),
+                "completed_at_utc": datetime.now(UTC).isoformat(),
                 "checks": {name: bool(value) for name, value in checks.items()},
                 "status": blocked_status,
                 "error_type": "PreflightBlocked",

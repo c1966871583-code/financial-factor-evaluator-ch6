@@ -11,7 +11,6 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-
 PROJECT = Path(__file__).resolve().parents[1]
 AUTH = PROJECT / "artifacts" / "authoritative_financial_snapshot"
 PACKAGE = PROJECT / "artifacts" / "bp_valuation_handoff"

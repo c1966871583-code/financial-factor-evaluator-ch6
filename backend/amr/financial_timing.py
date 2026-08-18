@@ -23,7 +23,6 @@ from zoneinfo import ZoneInfo
 
 import pandas as pd
 
-
 TIMING_POLICY_VERSION = "FIN-R1A-CONSERVATIVE-v1.0"
 MARKET_TIMEZONE = "Asia/Shanghai"
 
@@ -463,7 +462,7 @@ def _parse_announcement_timestamp(
                 "announcement_timestamp",
             )
         try:
-            parsed = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+            parsed = datetime.fromisoformat(raw)
         except ValueError as exc:
             raise _TimingValidationError(
                 ANNOUNCEMENT_TIMESTAMP_INVALID,
@@ -694,8 +693,8 @@ class StrictNextFinancialTimingPolicy:
         effective_dates: list[str | None] = []
         statuses: list[str] = []
         for row in output.itertuples(index=False):
-            publish_value = getattr(row, "publish_date")
-            report_value = getattr(row, "report_period")
+            publish_value = row.publish_date
+            report_value = row.report_period
             try:
                 publish = _parse_date_strict(
                     publish_value,

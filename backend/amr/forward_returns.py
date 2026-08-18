@@ -5,8 +5,8 @@ close[t+h]/close[t] - 1 per code.  Accepts Iterable[int] horizons.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass, field
-from typing import Iterable
 
 import numpy as np
 import pandas as pd
@@ -218,7 +218,7 @@ def build_financial_forward_return_batch(
     output = pd.DataFrame(output_rows, columns=["date", "code", "horizon", "forward_return"])
     audit = pd.DataFrame(audit_rows)
     valid_return_count = int(output["forward_return"].notna().sum())
-    formation_count = int(len(output))
+    formation_count = len(output)
     reason_counts = audit["audit_reason"].value_counts(dropna=False).to_dict()
     summary = {
         "formation_sample_count": formation_count,

@@ -15,7 +15,7 @@ import platform
 import subprocess
 import sys
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -23,12 +23,16 @@ import numpy as np
 import pandas as pd
 import rqdatac
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 
+from backend.amr.evaluation_financial import (
+    FinancialEvaluationConfig,
+    FinancialFormationContext,
+)
+from backend.amr.evaluation_pipeline import evaluate_bundle
+
 from backend.amr.evaluation_alignment import GateThresholds
-from backend.amr.evaluation_financial import FinancialEvaluationConfig, FinancialFormationContext
 from backend.amr.evaluation_input_contract import (
     EvaluationInputBundle,
     FactorRecord,
@@ -37,7 +41,6 @@ from backend.amr.evaluation_input_contract import (
     PriceVolumeBatch,
     ValueScope,
 )
-from backend.amr.evaluation_pipeline import evaluate_bundle
 from backend.amr.financial_factor_registry import (
     ROE_TTM_ENDING_EQUITY,
     financial_factor_registry,
@@ -47,7 +50,6 @@ from backend.amr.forward_returns import (
     FinancialForwardReturnPolicy,
     build_financial_forward_return_batch,
 )
-
 
 ROOT = PROJECT_ROOT / "artifacts" / "rqdata_shadow_test"
 RAW = ROOT / "raw"
@@ -103,7 +105,7 @@ def git_commit() -> str:
         return subprocess.check_output(
             ["git", "rev-parse", "HEAD"], cwd=PROJECT_ROOT, text=True
         ).strip()
-    except Exception:
+    except (OSError, subprocess.CalledProcessError):
         return "UNKNOWN"
 
 
@@ -256,7 +258,7 @@ def delisting_records(codes: list[str], maximum_exit: str) -> pd.DataFrame:
         if pd.notna(date) and minimum_entry < date <= maximum:
             rows.append(
                 {
-                    "code": str(getattr(instrument, "order_book_id")),
+                    "code": str(instrument.order_book_id),
                     "delisting_date": pd.Timestamp(date).strftime("%Y-%m-%d"),
                     "termination_value": np.nan,
                     "termination_value_source": "RQData instrument metadata has no settlement value",
@@ -441,13 +443,14 @@ def main() -> int:
 
         try:
             rqdatac.init()
-        except Exception as exc:
+        # rqdatac.init exposes provider-defined authentication and licence errors.
+        except Exception as exc:  # noqa: BLE001
             raise ShadowBlocked("BLOCKED_BY_RQDATA_INITIALIZATION", type(exc).__name__) from None
 
         calendar, calendar_path = build_calendar()
         timing_policy = FinancialTimingPolicy(calendar)
         forward_policy = FinancialForwardReturnPolicy(calendar)
-        market_panel, observed_prices, suspension_rows = build_market_panel(codes, calendar)
+        market_panel, _observed_prices, _suspension_rows = build_market_panel(codes, calendar)
         forward_raw_path = RAW / "forward_return_raw.parquet"
         market_panel.to_parquet(forward_raw_path, index=False)
 
@@ -582,8 +585,8 @@ def main() -> int:
             "missing_rate_by_factor": missing_rate_by_factor,
             "coverage_by_factor": coverage_by_factor,
             "coverage_by_date": result_by_date,
-            "duplicate_key_count": int(len(duplicate_rows)),
-            "unresolved_duplicate_key_count": int(len(duplicate_rows)),
+            "duplicate_key_count": len(duplicate_rows),
+            "unresolved_duplicate_key_count": len(duplicate_rows),
             "invalid_date_order_count": invalid_date_order,
             "lookahead_violation_count": invalid_date_order,
             "non_finite_factor_value_count": non_finite_financial,
@@ -608,11 +611,11 @@ def main() -> int:
             factor_id: PROCESSED / f"financial_batch_{factor_id.lower()}.parquet"
             for factor_id in financial_batches
         }
-        run_id = f"rqdata-shadow-resume-{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}-{uuid.uuid4().hex[:8]}"
+        run_id = f"rqdata-shadow-resume-{datetime.now(UTC).strftime('%Y%m%dT%H%M%SZ')}-{uuid.uuid4().hex[:8]}"
         manifest = {
             "run_id": run_id,
             "parent_run_id": old_manifest["run_id"],
-            "created_at_utc": datetime.now(timezone.utc).isoformat(),
+            "created_at_utc": datetime.now(UTC).isoformat(),
             "run_type": "CONTROLLED_REAL_DATA_SHADOW_TEST",
             "status": "SHADOW_TEST_PASSED",
             "code_commit": git_commit(),
@@ -753,7 +756,8 @@ def main() -> int:
     except ShadowBlocked as exc:
         print(json.dumps({"status": exc.status, "error_category": str(exc)}, ensure_ascii=False))
         return 2
-    except Exception as exc:
+    # Convert unexpected provider/runtime errors into a fail-closed audit result.
+    except Exception as exc:  # noqa: BLE001
         print(
             json.dumps(
                 {

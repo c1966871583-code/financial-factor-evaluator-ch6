@@ -9,15 +9,13 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-
 PROJECT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT))
 
-from backend.amr.financial_factor_registry import (  # noqa: E402
+from backend.amr.financial_factor_registry import (
     ROE_TTM_ENDING_EQUITY,
     financial_factor_registry,
 )
-
 
 ART = PROJECT / "artifacts"
 PROV = PROJECT / "docs" / "provenance"

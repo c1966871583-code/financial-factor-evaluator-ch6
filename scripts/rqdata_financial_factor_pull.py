@@ -9,14 +9,14 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from difflib import get_close_matches
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 import pandas as pd
-
 
 FACTOR_CANDIDATES: dict[str, tuple[str, ...]] = {
     "BP": ("book_to_price_ratio", "book_to_price", "bp"),
@@ -225,7 +225,7 @@ def pull_one(
         rqdata_factor=rqdata_factor,
         path=str(output_path),
         sha256=file_sha256(output_path),
-        rows=int(len(long)),
+        rows=len(long),
         non_null_rows=int(valid.sum()),
         symbols=int(long["order_book_id"].nunique()),
         date_min=long["date"].min().strftime("%Y-%m-%d") if not long.empty else None,
@@ -267,7 +267,7 @@ def main() -> int:
     ]
     summary = {
         "schema_version": "rqdata-financial-factor-pull-v1",
-        "retrieved_at": datetime.now(timezone.utc).isoformat(),
+        "retrieved_at": datetime.now(UTC).isoformat(),
         "rqdatac_version": getattr(rqdatac, "__version__", None),
         "start": args.start,
         "end": args.end,

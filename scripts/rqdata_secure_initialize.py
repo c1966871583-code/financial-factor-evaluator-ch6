@@ -13,7 +13,6 @@ import getpass
 import importlib.metadata
 import io
 
-
 EXPECTED_VERSION = "3.5.2"
 
 
@@ -56,7 +55,8 @@ def main() -> int:
     try:
         with contextlib.redirect_stdout(captured), contextlib.redirect_stderr(captured):
             rqdatac.init(uri=credential)
-    except Exception as exc:
+    # rqdatac.init exposes provider-defined authentication and licence errors.
+    except Exception as exc:  # noqa: BLE001
         kind = type(exc).__name__
         message = str(exc).lower()
         if "license" in message or "expired" in message:

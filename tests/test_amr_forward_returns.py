@@ -7,13 +7,16 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from backend.amr.evaluation_input_contract import (
+    EvaluationInputContractError,
+    ForwardReturnBatch,
+)
 from backend.amr.financial_timing import VersionedTradingCalendar
 from backend.amr.forward_returns import (
     FinancialForwardReturnPolicy,
     build_financial_forward_return_batch,
     build_security_forward_return_batch,
 )
-from backend.amr.evaluation_input_contract import EvaluationInputContractError, ForwardReturnBatch
 
 
 class TestHappyPath:
@@ -101,13 +104,19 @@ class TestHappyPath:
 
     def test_alignment_integration(self):
         from backend.amr.evaluation_alignment import align_price_volume_bundle
-        from backend.amr.evaluation_input_contract import FactorRecord, FactorType, ValueScope, PriceVolumeBatch, EvaluationInputBundle
+        from backend.amr.evaluation_input_contract import (
+            EvaluationInputBundle,
+            FactorRecord,
+            FactorType,
+            PriceVolumeBatch,
+            ValueScope,
+        )
         panel = pd.DataFrame({"date": ["2016-01-04", "2016-01-05"] * 2, "code": ["A", "A", "B", "B"], "close": [10, 11, 100, 200]})
         b = build_security_forward_return_batch(panel, horizons=[1], return_set_id="r1", version="v1", source="t")
         rec = FactorRecord(factor_id="test", factor_name="x", factor_type=FactorType.PRICE_VOLUME, value_scope=ValueScope.SECURITY_LEVEL, frequency="day", version="v1", source="t")
         fv = PriceVolumeBatch(factor_id="test", factor_type=FactorType.PRICE_VOLUME, value_scope=ValueScope.SECURITY_LEVEL, version="v1", source="t", _frame=pd.DataFrame({"date": ["2016-01-04", "2016-01-04"], "code": ["A", "B"], "factor_value": [0.5, -0.3], "horizon": "1"}))
         bundle = EvaluationInputBundle(factor_record=rec, factor_values=fv, forward_returns=b)
-        aligned, _, gate = align_price_volume_bundle(bundle, horizon="1")
+        _aligned, _, gate = align_price_volume_bundle(bundle, horizon="1")
         assert gate.overall_status.value != "blocked"
 
     def test_empty_panel(self):
