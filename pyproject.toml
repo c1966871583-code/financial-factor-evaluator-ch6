@@ -16,6 +16,9 @@ dependencies = [
 amazingdata = [
     "clickhouse-driver>=0.2.9",
 ]
+bp-valuation = [
+    "pyarrow>=18,<26",
+]
 
 [dependency-groups]
 dev = [

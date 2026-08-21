@@ -45,7 +45,7 @@ MVP_BATCH_SCHEMA_VERSION = "FinancialMVPBatch-v1.0"
 MVP_AUDIT_SCHEMA_VERSION = "FinancialBatchAudit-v1.0"
 MVP_OBSERVATION_SCHEMA_VERSION = "FinancialBatchObservation-v1.0"
 HASH_CONTRACT_VERSION = "FIN-MVP-DATA-HASH-v1.0"
-FORMULA_REGISTRY_VERSION = "FIN-MVP-FORMULA-REGISTRY-v1.0"
+FORMULA_REGISTRY_VERSION = "FIN-MVP-FORMULA-REGISTRY-v2.0"
 SUPPORTED_FACTOR_IDS = ("ROE", "BP", "OCF_NP")
 INTEGRATION_KEY_FIELDS = ("evaluation_date", "code", "factor_id")
 PUBLIC_BATCH_SORT_FIELDS = (
@@ -61,6 +61,24 @@ class MVPFactorId(str, Enum):
     OCF_NP = "OCF_NP"
 
 
+class FinancialSectorType(str, Enum):
+    NON_FINANCIAL = "NON_FINANCIAL"
+    BANK = "BANK"
+    INSURANCE = "INSURANCE"
+    SECURITIES = "SECURITIES"
+    DIVERSIFIED_FINANCIAL = "DIVERSIFIED_FINANCIAL"
+
+
+class FormulaCalculationStatus(str, Enum):
+    VALID = "VALID"
+    NOT_APPLICABLE = "NOT_APPLICABLE"
+    INVALID_DENOMINATOR = "INVALID_DENOMINATOR"
+    MISSING_REQUIRED_INPUT = "MISSING_REQUIRED_INPUT"
+    SECTOR_CLASSIFICATION_MISSING = "SECTOR_CLASSIFICATION_MISSING"
+    SECTOR_FORMULA_MISMATCH = "SECTOR_FORMULA_MISMATCH"
+    NONFINITE_INPUT = "NONFINITE_INPUT"
+
+
 class MVPBatchGateStatus(str, Enum):
     READY = "ready"
     BLOCKED = "blocked"
@@ -69,40 +87,29 @@ class MVPBatchGateStatus(str, Enum):
 class MVPBatchErrorCode(str, Enum):
     UNSUPPORTED_MVP_FACTOR = "UNSUPPORTED_MVP_FACTOR"
     MVP_FACTOR_COVERAGE_INCOMPLETE = "MVP_FACTOR_COVERAGE_INCOMPLETE"
-    FINANCIAL_BATCH_REQUIRED_FIELD_MISSING = (
-        "FINANCIAL_BATCH_REQUIRED_FIELD_MISSING"
-    )
-    EFFECTIVE_DATE_AFTER_EVALUATION_DATE = (
-        "EFFECTIVE_DATE_AFTER_EVALUATION_DATE"
-    )
+    FINANCIAL_BATCH_REQUIRED_FIELD_MISSING = "FINANCIAL_BATCH_REQUIRED_FIELD_MISSING"
+    EFFECTIVE_DATE_AFTER_EVALUATION_DATE = "EFFECTIVE_DATE_AFTER_EVALUATION_DATE"
     LINEAGE_REFERENCE_MISSING = "LINEAGE_REFERENCE_MISSING"
     SAMPLE_MASK_REFERENCE_MISSING = "SAMPLE_MASK_REFERENCE_MISSING"
     INVALID_FACTOR_VALUE = "INVALID_FACTOR_VALUE"
     NONFINITE_FACTOR_VALUE = "NONFINITE_FACTOR_VALUE"
-    DUPLICATE_FINANCIAL_OBSERVATION = (
-        "DUPLICATE_FINANCIAL_OBSERVATION"
-    )
+    DUPLICATE_FINANCIAL_OBSERVATION = "DUPLICATE_FINANCIAL_OBSERVATION"
     FINANCIAL_OBSERVATION_CONFLICT = "FINANCIAL_OBSERVATION_CONFLICT"
-    CROSS_SECURITY_FACTOR_VALUE_DETECTED = (
-        "CROSS_SECURITY_FACTOR_VALUE_DETECTED"
-    )
+    CROSS_SECURITY_FACTOR_VALUE_DETECTED = "CROSS_SECURITY_FACTOR_VALUE_DETECTED"
     INPUT_MUTATION_DETECTED = "INPUT_MUTATION_DETECTED"
     NONDETERMINISTIC_BATCH_OUTPUT = "NONDETERMINISTIC_BATCH_OUTPUT"
     FUTURE_LABEL_DEPENDENCY_DETECTED = "FUTURE_LABEL_DEPENDENCY_DETECTED"
     PATH_A_UPSTREAM_PROOF_MISSING = "PATH_A_UPSTREAM_PROOF_MISSING"
-    PATH_B_FORMULA_REFERENCE_MISSING = (
-        "PATH_B_FORMULA_REFERENCE_MISSING"
-    )
+    PATH_B_FORMULA_REFERENCE_MISSING = "PATH_B_FORMULA_REFERENCE_MISSING"
     DYNAMIC_FORMULA_NOT_ALLOWED = "DYNAMIC_FORMULA_NOT_ALLOWED"
     FORMULA_INPUT_REFERENCE_MISSING = "FORMULA_INPUT_REFERENCE_MISSING"
-    FORMULA_INPUT_REQUIRES_FIN_R2_PREP = (
-        "FORMULA_INPUT_REQUIRES_FIN_R2_PREP"
-    )
+    SECTOR_CLASSIFICATION_MISSING = "SECTOR_CLASSIFICATION_MISSING"
+    SECTOR_FORMULA_MISMATCH = "SECTOR_FORMULA_MISMATCH"
+    FORMULA_NOT_APPLICABLE = "FORMULA_NOT_APPLICABLE"
+    FORMULA_INPUT_REQUIRES_FIN_R2_PREP = "FORMULA_INPUT_REQUIRES_FIN_R2_PREP"
     LINEAGE_CONTENT_HASH_MISMATCH = "LINEAGE_CONTENT_HASH_MISMATCH"
     SAMPLE_CONTENT_HASH_MISMATCH = "SAMPLE_CONTENT_HASH_MISMATCH"
-    SOURCE_SNAPSHOT_FINGERPRINT_MISMATCH = (
-        "SOURCE_SNAPSHOT_FINGERPRINT_MISMATCH"
-    )
+    SOURCE_SNAPSHOT_FINGERPRINT_MISMATCH = "SOURCE_SNAPSHOT_FINGERPRINT_MISMATCH"
     FACTOR_VALUE_HASH_MISMATCH = "FACTOR_VALUE_HASH_MISMATCH"
     BATCH_CONSTRUCTION_FAILED = "BATCH_CONSTRUCTION_FAILED"
     INVALID_MVP_BATCH_INPUT = "INVALID_MVP_BATCH_INPUT"
@@ -129,14 +136,21 @@ class MVPFormulaDefinition:
     numerator_field: str
     denominator_field: str
     required_input_fields: tuple[str, ...]
+    applicable_sector_types: tuple[str, ...]
+    excluded_sector_types: tuple[str, ...]
+    industry_standard: str
+    industry_level: int
+    sector_mapping_version: str
+    formula_variant: str
+    denominator_policy: str
+    fallback_policy: str
+    not_applicable_reason: str | None
+    effective_from: str
     registry_version: str = FORMULA_REGISTRY_VERSION
 
     @property
     def formula_reference(self) -> str:
-        return (
-            f"registered-formula://{self.formula_id}/"
-            f"{self.formula_version}"
-        )
+        return f"registered-formula://{self.formula_id}/{self.formula_version}"
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -146,6 +160,16 @@ class MVPFormulaDefinition:
             "numerator_field": self.numerator_field,
             "denominator_field": self.denominator_field,
             "required_input_fields": list(self.required_input_fields),
+            "applicable_sector_types": list(self.applicable_sector_types),
+            "excluded_sector_types": list(self.excluded_sector_types),
+            "industry_standard": self.industry_standard,
+            "industry_level": self.industry_level,
+            "sector_mapping_version": self.sector_mapping_version,
+            "formula_variant": self.formula_variant,
+            "denominator_policy": self.denominator_policy,
+            "fallback_policy": self.fallback_policy,
+            "not_applicable_reason": self.not_applicable_reason,
+            "effective_from": self.effective_from,
             "registry_version": self.registry_version,
             "formula_reference": self.formula_reference,
         }
@@ -162,6 +186,16 @@ FORMULA_REGISTRY = (
             "parent_net_profit_ttm",
             "average_parent_equity",
         ),
+        applicable_sector_types=tuple(item.value for item in FinancialSectorType),
+        excluded_sector_types=(),
+        industry_standard="ExposureBatch-v1",
+        industry_level=1,
+        sector_mapping_version="FIN-SECTOR-MAP-v1.0",
+        formula_variant="parent_net_profit_ttm/average_parent_equity",
+        denominator_policy="REQUIRE_POSITIVE; ZERO_OR_NEGATIVE_INVALID; NO_EPSILON_SUBSTITUTION",
+        fallback_policy="NO_FALLBACK",
+        not_applicable_reason=None,
+        effective_from="2026-08-20",
     ),
     MVPFormulaDefinition(
         factor_id=MVPFactorId.BP.value,
@@ -170,6 +204,16 @@ FORMULA_REGISTRY = (
         numerator_field="parent_equity",
         denominator_field="market_cap",
         required_input_fields=("parent_equity", "market_cap"),
+        applicable_sector_types=tuple(item.value for item in FinancialSectorType),
+        excluded_sector_types=(),
+        industry_standard="ExposureBatch-v1",
+        industry_level=1,
+        sector_mapping_version="FIN-SECTOR-MAP-v1.0",
+        formula_variant="parent_equity/evaluation_date_total_market_cap",
+        denominator_policy="MARKET_CAP_POSITIVE_AND_SAME_AS_OF; NON_POSITIVE_EQUITY_INVALID; NO_EPSILON_SUBSTITUTION",
+        fallback_policy="NO_FALLBACK",
+        not_applicable_reason=None,
+        effective_from="2026-08-20",
     ),
     MVPFormulaDefinition(
         factor_id=MVPFactorId.OCF_NP.value,
@@ -181,6 +225,20 @@ FORMULA_REGISTRY = (
             "operating_cash_flow_ttm",
             "parent_net_profit_ttm",
         ),
+        applicable_sector_types=(FinancialSectorType.NON_FINANCIAL.value,),
+        excluded_sector_types=tuple(
+            item.value
+            for item in FinancialSectorType
+            if item is not FinancialSectorType.NON_FINANCIAL
+        ),
+        industry_standard="ExposureBatch-v1",
+        industry_level=1,
+        sector_mapping_version="FIN-SECTOR-MAP-v1.0",
+        formula_variant="operating_cash_flow_ttm/parent_net_profit_ttm",
+        denominator_policy="ABS_DENOMINATOR_GT_MATERIALITY_FLOOR; NO_EPSILON_SUBSTITUTION",
+        fallback_policy="NO_FALLBACK",
+        not_applicable_reason="Operating cash flow is not comparable for financial-sector business models.",
+        effective_from="2026-08-20",
     ),
 )
 
@@ -191,6 +249,146 @@ def formula_definition_for(factor_id: Any) -> MVPFormulaDefinition:
         if definition.factor_id == normalized:
             return definition
     raise ValueError(f"unsupported MVP factor_id: {normalized}")
+
+
+@dataclass(frozen=True)
+class FormulaCalculationResult:
+    factor_id: str
+    sector_type: str | None
+    status: str
+    value: float | None
+    issue_code: str | None
+    formula_variant: str | None
+    formula_version: str
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "factor_id": self.factor_id,
+            "sector_type": self.sector_type,
+            "status": self.status,
+            "value": self.value,
+            "issue_code": self.issue_code,
+            "formula_variant": self.formula_variant,
+            "formula_version": self.formula_version,
+        }
+
+
+def evaluate_registered_mvp_formula(
+    factor_id: Any,
+    formula_inputs: Mapping[str, Any],
+    *,
+    sector_type: Any,
+    declared_sector_type: Any | None = None,
+    denominator_materiality_floor: float = 1e-12,
+    market_cap_as_of: Any | None = None,
+    evaluation_date: Any | None = None,
+) -> FormulaCalculationResult:
+    """Evaluate a registered formula with PIT sector routing, fail closed."""
+    definition = formula_definition_for(factor_id)
+    if sector_type is None or not str(sector_type).strip():
+        return _formula_result(
+            definition, None, FormulaCalculationStatus.SECTOR_CLASSIFICATION_MISSING
+        )
+    normalized_sector = str(getattr(sector_type, "value", sector_type)).strip().upper()
+    if normalized_sector not in {item.value for item in FinancialSectorType}:
+        return _formula_result(
+            definition,
+            normalized_sector,
+            FormulaCalculationStatus.SECTOR_CLASSIFICATION_MISSING,
+        )
+    if declared_sector_type is not None:
+        declared = (
+            str(getattr(declared_sector_type, "value", declared_sector_type))
+            .strip()
+            .upper()
+        )
+        if declared != normalized_sector:
+            return _formula_result(
+                definition,
+                normalized_sector,
+                FormulaCalculationStatus.SECTOR_FORMULA_MISMATCH,
+            )
+    if normalized_sector not in definition.applicable_sector_types:
+        return _formula_result(
+            definition, normalized_sector, FormulaCalculationStatus.NOT_APPLICABLE
+        )
+    if not isinstance(formula_inputs, Mapping):
+        return _formula_result(
+            definition,
+            normalized_sector,
+            FormulaCalculationStatus.MISSING_REQUIRED_INPUT,
+        )
+    if set(map(str, formula_inputs)) != set(definition.required_input_fields):
+        return _formula_result(
+            definition,
+            normalized_sector,
+            FormulaCalculationStatus.MISSING_REQUIRED_INPUT,
+        )
+    try:
+        values = {
+            name: float(formula_inputs[name])
+            for name in definition.required_input_fields
+        }
+    except (KeyError, TypeError, ValueError):
+        return _formula_result(
+            definition, normalized_sector, FormulaCalculationStatus.NONFINITE_INPUT
+        )
+    if not all(math.isfinite(value) for value in values.values()):
+        return _formula_result(
+            definition, normalized_sector, FormulaCalculationStatus.NONFINITE_INPUT
+        )
+    denominator = values[definition.denominator_field]
+    numerator = values[definition.numerator_field]
+    invalid = (
+        denominator <= 0
+        if definition.factor_id in ("ROE", "BP")
+        else abs(denominator) <= denominator_materiality_floor
+    )
+    if definition.factor_id == "BP":
+        invalid = invalid or numerator <= 0
+        if market_cap_as_of is None or evaluation_date is None:
+            return _formula_result(
+                definition,
+                normalized_sector,
+                FormulaCalculationStatus.MISSING_REQUIRED_INPUT,
+            )
+        invalid = invalid or str(market_cap_as_of) != str(evaluation_date)
+    if invalid:
+        return _formula_result(
+            definition, normalized_sector, FormulaCalculationStatus.INVALID_DENOMINATOR
+        )
+    value = numerator / denominator
+    if not math.isfinite(value):
+        return _formula_result(
+            definition, normalized_sector, FormulaCalculationStatus.NONFINITE_INPUT
+        )
+    return FormulaCalculationResult(
+        definition.factor_id,
+        normalized_sector,
+        FormulaCalculationStatus.VALID.value,
+        value,
+        None,
+        definition.formula_variant,
+        definition.formula_version,
+    )
+
+
+def _formula_result(
+    definition: MVPFormulaDefinition,
+    sector: str | None,
+    status: FormulaCalculationStatus,
+) -> FormulaCalculationResult:
+    return FormulaCalculationResult(
+        definition.factor_id,
+        sector,
+        status.value,
+        None,
+        status.value,
+        definition.formula_variant
+        if status is not FormulaCalculationStatus.NOT_APPLICABLE
+        else None,
+        definition.formula_version,
+    )
 
 
 @dataclass(frozen=True)
@@ -213,13 +411,9 @@ class MVPBatchConfig:
         ):
             _required_text(getattr(self, field_name), field_name)
         if self.schema_version != MVP_BATCH_SCHEMA_VERSION:
-            raise ValueError(
-                f"schema_version must be {MVP_BATCH_SCHEMA_VERSION}"
-            )
+            raise ValueError(f"schema_version must be {MVP_BATCH_SCHEMA_VERSION}")
         if self.formula_registry_version != FORMULA_REGISTRY_VERSION:
-            raise ValueError(
-                "unsupported formula_registry_version"
-            )
+            raise ValueError("unsupported formula_registry_version")
 
     def to_dict(self) -> dict[str, str]:
         return {
@@ -292,24 +486,18 @@ class MVPBatchObservation:
             "factor_value": self.factor_value,
             "factor_value_hash": self.factor_value_hash,
             "path_type": self.path_type,
-            "upstream_calculation_reference":
-                self.upstream_calculation_reference,
-            "upstream_calculation_version":
-                self.upstream_calculation_version,
+            "upstream_calculation_reference": self.upstream_calculation_reference,
+            "upstream_calculation_version": self.upstream_calculation_version,
             "upstream_calculation_hash": self.upstream_calculation_hash,
             "formula_id": self.formula_id,
             "formula_version": self.formula_version,
             "formula_reference": self.formula_reference,
             "formula_input_hash": self.formula_input_hash,
-            "formula_input_references":
-                list(self.formula_input_references),
-            "source_snapshot_fingerprint":
-                self.source_snapshot_fingerprint,
+            "formula_input_references": list(self.formula_input_references),
+            "source_snapshot_fingerprint": self.source_snapshot_fingerprint,
             "financial_lineage_id": self.financial_lineage_id,
-            "financial_lineage_content_hash":
-                self.financial_lineage_content_hash,
-            "financial_lineage_reference":
-                self.financial_lineage_reference,
+            "financial_lineage_content_hash": self.financial_lineage_content_hash,
+            "financial_lineage_reference": self.financial_lineage_reference,
             "sample_id": self.sample_id,
             "sample_content_hash": self.sample_content_hash,
             "sample_reference": self.sample_reference,
@@ -348,8 +536,7 @@ class MVPBatchObservationReference:
         if len(matches) != 1:
             raise MVPBatchLookupError(
                 MVPBatchErrorCode.LINEAGE_REFERENCE_MISSING,
-                f"expected one integrated observation for {key}, "
-                f"found {len(matches)}",
+                f"expected one integrated observation for {key}, found {len(matches)}",
                 lookup_key=key,
             )
         return matches[0]
@@ -419,9 +606,7 @@ class MVPFinancialBatchResult:
 
     def get_batch(self, factor_id: Any) -> FinancialBatch:
         normalized = _required_text(factor_id, "factor_id")
-        matches = [
-            item for item in self.batches if item.factor_id == normalized
-        ]
+        matches = [item for item in self.batches if item.factor_id == normalized]
         if len(matches) != 1:
             raise MVPBatchLookupError(
                 MVPBatchErrorCode.UNSUPPORTED_MVP_FACTOR,
@@ -489,6 +674,11 @@ def compute_formula_input_hash(
 def calculate_registered_mvp_formula(
     factor_id: Any,
     formula_inputs: Mapping[str, Any],
+    *,
+    sector_type: Any,
+    declared_sector_type: Any | None = None,
+    market_cap_as_of: Any | None = None,
+    evaluation_date: Any | None = None,
 ) -> float:
     """Calculate one frozen formula over already prepared controlled inputs.
 
@@ -496,17 +686,18 @@ def calculate_registered_mvp_formula(
     negative denominator requires FIN-R2-PREP and raises ``ValueError``.
     """
 
-    definition = formula_definition_for(factor_id)
-    values = _validate_formula_inputs(definition, formula_inputs)
-    denominator = values[definition.denominator_field]
-    if denominator <= 0:
-        raise ValueError(
-            "zero or negative denominator requires FIN-R2-PREP"
-        )
-    result = values[definition.numerator_field] / denominator
-    if not math.isfinite(result):
-        raise ValueError("formula result must be finite")
-    return result
+    result = evaluate_registered_mvp_formula(
+        factor_id,
+        formula_inputs,
+        sector_type=sector_type,
+        declared_sector_type=declared_sector_type,
+        market_cap_as_of=market_cap_as_of,
+        evaluation_date=evaluation_date,
+    )
+    if result.status != FormulaCalculationStatus.VALID.value:
+        raise ValueError(result.status)
+    assert result.value is not None
+    return result.value
 
 
 def build_mvp_financial_batches(
@@ -555,12 +746,14 @@ def build_mvp_financial_batches(
         controlled_records = copy.deepcopy(raw_records)
         input_before = _versioned_hash(
             "input_mutation_guard",
-            _mutation_guard_value({
-                "records": raw_records,
-                "lineage_references": lineage_references,
-                "sample_references": sample_references,
-                "configuration": configuration.to_dict(),
-            }),
+            _mutation_guard_value(
+                {
+                    "records": raw_records,
+                    "lineage_references": lineage_references,
+                    "sample_references": sample_references,
+                    "configuration": configuration.to_dict(),
+                }
+            ),
         )
     except Exception as exc:
         return _blocked_empty(
@@ -574,9 +767,7 @@ def build_mvp_financial_batches(
 
     errors: list[MVPBatchIssue] = []
     warnings: list[MVPBatchIssue] = []
-    _validate_reference_maps(
-        lineage_references, sample_references, errors
-    )
+    _validate_reference_maps(lineage_references, sample_references, errors)
 
     observations: list[MVPBatchObservation] = []
     for index, raw_record in enumerate(controlled_records):
@@ -617,12 +808,14 @@ def build_mvp_financial_batches(
     try:
         input_after = _versioned_hash(
             "input_mutation_guard",
-            _mutation_guard_value({
-                "records": raw_records,
-                "lineage_references": lineage_references,
-                "sample_references": sample_references,
-                "configuration": configuration.to_dict(),
-            }),
+            _mutation_guard_value(
+                {
+                    "records": raw_records,
+                    "lineage_references": lineage_references,
+                    "sample_references": sample_references,
+                    "configuration": configuration.to_dict(),
+                }
+            ),
         )
         if input_before != input_after:
             errors.append(
@@ -643,9 +836,7 @@ def build_mvp_financial_batches(
     warnings = _deduplicate_issues(warnings)
     ready = not errors
     observation_reference = (
-        _build_observation_reference(tuple(observations))
-        if ready
-        else None
+        _build_observation_reference(tuple(observations)) if ready else None
     )
     batches: tuple[FinancialBatch, ...] = ()
     batch_fingerprints: tuple[tuple[str, str], ...] = ()
@@ -700,8 +891,7 @@ def _validate_reference_maps(
             errors.append(
                 _issue(
                     code,
-                    f"{mapping_name} keys must be exactly "
-                    f"{SUPPORTED_FACTOR_IDS}",
+                    f"{mapping_name} keys must be exactly {SUPPORTED_FACTOR_IDS}",
                     mapping_name,
                 )
             )
@@ -718,9 +908,7 @@ def _validate_reference_maps(
                 )
             )
         else:
-            if lineage_reference.row_count != len(
-                lineage_reference.records
-            ):
+            if lineage_reference.row_count != len(lineage_reference.records):
                 errors.append(
                     _issue(
                         MVPBatchErrorCode.LINEAGE_REFERENCE_MISSING,
@@ -732,8 +920,7 @@ def _validate_reference_maps(
             for lineage in lineage_reference.records:
                 if (
                     lineage.factor_id != factor_id
-                    or lineage.content_hash
-                    != recompute_lineage_content_hash(lineage)
+                    or lineage.content_hash != recompute_lineage_content_hash(lineage)
                 ):
                     errors.append(
                         _issue(
@@ -755,10 +942,10 @@ def _validate_reference_maps(
                 )
             )
         else:
-            if (
-                sample_reference.row_count != len(sample_reference.records)
-                or sample_reference.sample_fingerprint
-                != compute_sample_fingerprint(sample_reference.records)
+            if sample_reference.row_count != len(
+                sample_reference.records
+            ) or sample_reference.sample_fingerprint != compute_sample_fingerprint(
+                sample_reference.records
             ):
                 errors.append(
                     _issue(
@@ -771,8 +958,7 @@ def _validate_reference_maps(
             for sample in sample_reference.records:
                 if (
                     sample.factor_id != factor_id
-                    or sample.content_hash
-                    != recompute_sample_content_hash(sample)
+                    or sample.content_hash != recompute_sample_content_hash(sample)
                 ):
                     errors.append(
                         _issue(
@@ -801,8 +987,7 @@ def _normalize_observation(
             "executable_code",
             "factor_formula",
         )
-        if field_name in record
-        and record[field_name] not in (None, "", NOT_APPLICABLE)
+        if field_name in record and record[field_name] not in (None, "", NOT_APPLICABLE)
     )
     if dynamic_fields:
         errors.append(
@@ -908,7 +1093,8 @@ def _normalize_observation(
             item.evaluation_date,
             item.code,
             item.factor_id,
-        ) == (evaluation_date, code, factor_id)
+        )
+        == (evaluation_date, code, factor_id)
     ]
     if len(sample_matches) != 1:
         errors.append(
@@ -1161,16 +1347,13 @@ def _resolve_factor_value(
         formula_inputs = record.get("formula_inputs")
         if not isinstance(formula_inputs, Mapping):
             raise TypeError("formula_inputs must be a mapping")
-        references = _reference_tuple(
-            record.get("formula_input_references")
-        )
+        references = _reference_tuple(record.get("formula_input_references"))
     except (TypeError, ValueError) as exc:
         errors.append(
             _issue(
                 MVPBatchErrorCode.PATH_B_FORMULA_REFERENCE_MISSING,
                 str(exc),
-                "formula_id,formula_version,formula_inputs,"
-                "formula_input_references",
+                "formula_id,formula_version,formula_inputs,formula_input_references",
                 record_key,
             )
         )
@@ -1191,17 +1374,26 @@ def _resolve_factor_value(
         return None
     try:
         factor_value = calculate_registered_mvp_formula(
-            factor_id, formula_inputs
+            factor_id,
+            formula_inputs,
+            sector_type=record.get("sector_type"),
+            declared_sector_type=record.get("declared_sector_type"),
+            market_cap_as_of=record.get("market_cap_as_of"),
+            evaluation_date=record.get("evaluation_date"),
         )
         formula_input_hash = compute_formula_input_hash(
             factor_id, formula_inputs, references
         )
     except (TypeError, ValueError) as exc:
-        code = (
-            MVPBatchErrorCode.FORMULA_INPUT_REQUIRES_FIN_R2_PREP
-            if "denominator" in str(exc)
-            or "finite" in str(exc)
-            else MVPBatchErrorCode.FORMULA_INPUT_REFERENCE_MISSING
+        status_to_code = {
+            FormulaCalculationStatus.SECTOR_CLASSIFICATION_MISSING.value: MVPBatchErrorCode.SECTOR_CLASSIFICATION_MISSING,
+            FormulaCalculationStatus.SECTOR_FORMULA_MISMATCH.value: MVPBatchErrorCode.SECTOR_FORMULA_MISMATCH,
+            FormulaCalculationStatus.NOT_APPLICABLE.value: MVPBatchErrorCode.FORMULA_NOT_APPLICABLE,
+            FormulaCalculationStatus.INVALID_DENOMINATOR.value: MVPBatchErrorCode.FORMULA_INPUT_REQUIRES_FIN_R2_PREP,
+            FormulaCalculationStatus.NONFINITE_INPUT.value: MVPBatchErrorCode.FORMULA_INPUT_REQUIRES_FIN_R2_PREP,
+        }
+        code = status_to_code.get(
+            str(exc), MVPBatchErrorCode.FORMULA_INPUT_REFERENCE_MISSING
         )
         errors.append(
             _issue(
@@ -1249,40 +1441,28 @@ def _validate_formula_inputs(
     expected_fields = set(definition.required_input_fields)
     if actual_fields != expected_fields:
         raise ValueError(
-            "formula_inputs fields must be exactly "
-            f"{definition.required_input_fields}"
+            f"formula_inputs fields must be exactly {definition.required_input_fields}"
         )
     values: dict[str, float] = {}
     for field_name in definition.required_input_fields:
         try:
-            values[field_name] = _finite_factor_value(
-                formula_inputs[field_name]
-            )
+            values[field_name] = _finite_factor_value(formula_inputs[field_name])
         except (TypeError, ValueError) as exc:
-            raise ValueError(
-                f"{field_name} must be a finite prepared input"
-            ) from exc
+            raise ValueError(f"{field_name} must be a finite prepared input") from exc
     return values
 
 
 def _reference_tuple(values: Any) -> tuple[str, ...]:
     if isinstance(values, str) or values is None:
-        raise TypeError(
-            "formula_input_references must be a non-empty iterable of ids"
-        )
+        raise TypeError("formula_input_references must be a non-empty iterable of ids")
     try:
         references = tuple(
             sorted(
-                {
-                    _required_text(value, "formula_input_reference")
-                    for value in values
-                }
+                {_required_text(value, "formula_input_reference") for value in values}
             )
         )
     except TypeError as exc:
-        raise TypeError(
-            "formula_input_references must be iterable"
-        ) from exc
+        raise TypeError("formula_input_references must be iterable") from exc
     if not references:
         raise ValueError("formula_input_references must be non-empty")
     return references
@@ -1292,9 +1472,7 @@ def _validate_observation_conflicts(
     observations: list[MVPBatchObservation],
     errors: list[MVPBatchIssue],
 ) -> None:
-    groups: dict[
-        tuple[str, str, str], list[MVPBatchObservation]
-    ] = {}
+    groups: dict[tuple[str, str, str], list[MVPBatchObservation]] = {}
     for item in observations:
         key = (item.evaluation_date, item.code, item.factor_id)
         groups.setdefault(key, []).append(item)
@@ -1307,7 +1485,8 @@ def _validate_observation_conflicts(
                 {
                     field_name: value
                     for field_name, value in item.to_dict().items()
-                    if field_name not in {
+                    if field_name
+                    not in {
                         "observation_id",
                         "content_hash",
                     }
@@ -1329,9 +1508,7 @@ def _validate_observation_conflicts(
             )
         )
 
-    public_groups: dict[
-        tuple[str, str, str, str], list[MVPBatchObservation]
-    ] = {}
+    public_groups: dict[tuple[str, str, str, str], list[MVPBatchObservation]] = {}
     for item in observations:
         key = (
             item.factor_id,
@@ -1341,16 +1518,12 @@ def _validate_observation_conflicts(
         )
         public_groups.setdefault(key, []).append(item)
     for key, group in sorted(public_groups.items()):
-        values = {
-            (item.factor_value_hash, item.financial_lineage_id)
-            for item in group
-        }
+        values = {(item.factor_value_hash, item.financial_lineage_id) for item in group}
         if len(values) > 1:
             errors.append(
                 _issue(
                     MVPBatchErrorCode.FINANCIAL_OBSERVATION_CONFLICT,
-                    "public FinancialBatch key has conflicting values or "
-                    "lineage",
+                    "public FinancialBatch key has conflicting values or lineage",
                     "factor_id,code,report_period,effective_date",
                     "|".join(key),
                 )
@@ -1368,18 +1541,14 @@ def _validate_cross_security_isolation(
             ("sample", item.sample_id),
         ]
         if item.path_type == PathType.UPSTREAM_COMPUTED.value:
-            references.append(
-                ("upstream", item.upstream_calculation_reference)
-            )
+            references.append(("upstream", item.upstream_calculation_reference))
         else:
             references.extend(
                 ("formula_input", reference)
                 for reference in item.formula_input_references
             )
         for reference_type, reference in references:
-            owners.setdefault((reference_type, reference), set()).add(
-                item.code
-            )
+            owners.setdefault((reference_type, reference), set()).add(item.code)
     for reference, codes in sorted(owners.items()):
         if len(codes) > 1:
             errors.append(
@@ -1440,18 +1609,14 @@ def _build_batches(
                     "factor_value": item.factor_value,
                 },
             )
-        public_rows = [
-            public_rows_by_key[key] for key in sorted(public_rows_by_key)
-        ]
+        public_rows = [public_rows_by_key[key] for key in sorted(public_rows_by_key)]
         fingerprint = _versioned_hash(
             "public_financial_batch",
             {
                 "factor_id": factor_id,
                 "configuration": configuration.to_dict(),
                 "rows": public_rows,
-                "integration_records": [
-                    item.to_dict() for item in factor_observations
-                ],
+                "integration_records": [item.to_dict() for item in factor_observations],
             },
         )
         frame = pd.DataFrame(
@@ -1478,10 +1643,8 @@ def _build_batches(
                     "mvp_batch_schema_version": MVP_BATCH_SCHEMA_VERSION,
                     "formula_registry_version": FORMULA_REGISTRY_VERSION,
                     "batch_fingerprint": fingerprint,
-                    "observation_reference":
-                        observation_reference.location,
-                    "observation_reference_content_hash":
-                        observation_reference.content_hash,
+                    "observation_reference": observation_reference.location,
+                    "observation_reference_content_hash": observation_reference.content_hash,
                     "integration_row_count": len(factor_observations),
                     "public_row_count": len(public_rows),
                     "future_labels_consumed": False,
@@ -1524,12 +1687,7 @@ def _build_audit(
         MVPBatchErrorCode.CROSS_SECURITY_FACTOR_VALUE_DETECTED.value,
     }
     timing_references = tuple(
-        sorted(
-            {
-                f"{item.factor_id}:{item.effective_date}"
-                for item in observations
-            }
-        )
+        sorted({f"{item.factor_id}:{item.effective_date}" for item in observations})
     )
     provenance_references = tuple(
         sorted(
@@ -1540,31 +1698,22 @@ def _build_audit(
         )
     )
     sample_references = tuple(
-        sorted(
-            {
-                f"{item.factor_id}:{item.sample_reference}"
-                for item in observations
-            }
-        )
+        sorted({f"{item.factor_id}:{item.sample_reference}" for item in observations})
     )
     accepted_count = len(observations) if status == "ready" else 0
     fields = {
         "schema_version": MVP_AUDIT_SCHEMA_VERSION,
         "supported_factor_ids": SUPPORTED_FACTOR_IDS,
         "path_a_count": sum(
-            item.path_type == PathType.UPSTREAM_COMPUTED.value
-            for item in observations
+            item.path_type == PathType.UPSTREAM_COMPUTED.value for item in observations
         ),
         "path_b_count": sum(
-            item.path_type == PathType.REGISTERED_FORMULA.value
-            for item in observations
+            item.path_type == PathType.REGISTERED_FORMULA.value for item in observations
         ),
         "total_input_count": total_input_count,
         "accepted_count": accepted_count,
         "rejected_count": total_input_count - accepted_count,
-        "conflict_count": sum(
-            item.code in conflict_codes for item in errors
-        ),
+        "conflict_count": sum(item.code in conflict_codes for item in errors),
         "timing_references": timing_references,
         "provenance_references": provenance_references,
         "sample_references": sample_references,
