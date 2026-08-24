@@ -45,7 +45,7 @@ def report_financial_p3_info_gain_coverage(combos:FinancialP3CombinationsResult,
  if not isinstance(inputs,InfoGainInputPreparationResult):raise TypeError("inputs must be InfoGainInputPreparationResult")
  if not isinstance(configuration,CoverageConfig):raise TypeError("configuration must be CoverageConfig")
  errors=[]
- if combos.combinations_audit.gate_status!="ready" or combos.combinations_audit.output_fingerprint!=configuration.accepted_combination_fingerprint:errors.append(CoverageIssue("COMBOS_NOT_ACCEPTED","accepted COMBOS output drifted"))
+ if combos.combinations_audit.gate_status!="ready" or combos.combinations_audit.output_fingerprint!=configuration.accepted_combination_fingerprint:errors.append(CoverageIssue("COMBOS_NOT_ACCEPTED",f"accepted COMBOS output drifted: expected={configuration.accepted_combination_fingerprint}, actual={combos.combinations_audit.output_fingerprint}"))
  if inputs.audit.gate_status!="ready" or inputs.audit.output_fingerprint!=configuration.accepted_input_fingerprint:errors.append(CoverageIssue("INPUTS_NOT_ACCEPTED","accepted 02A output drifted"))
  if tuple(x.definition.combination_id for x in combos.experiments)!=ORDER or tuple(x.combo_id for x in inputs.packages)!=ORDER:errors.append(CoverageIssue("COMBO_ORDER_MISMATCH","VQ,QG,CASHQ required"))
  reports=[]
