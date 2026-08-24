@@ -4,20 +4,20 @@ from __future__ import annotations
 import hashlib
 import json
 import math
-from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
 
-import numpy as np
-
+from backend.amr.financial_fingerprint import canonicalize_financial_fingerprint
 from backend.amr.financial_p3_combinations import FinancialP3CombinationsResult
 from backend.amr.financial_p3_info_gain_m_member_baselines import MMemberBaselineResult
 
-COMBO_FP="7188b1deb543e4357a6df51cafd91d1e3948ebd1440b9130e87427580a37df30"
+COMBO_FP="73f37667bbb7323cee65dfd89b16a31109f3bd2bc4e65e775dcf37e47a2195d8"
 MEMBER_FP="6a60ae604713997965de4322a2c3b0b5e83619ae92b3cb2ca8c0b3eade8baa2f"
-CONTRACT_HASH="6a8b42f96407d0ed9659fc6f18a76d2c0e2a6a870eed25b0fc18decba9c9f844"
+CONTRACT_HASH="e3a5c83fbb7fd5ea47f744992294a742dfaa5c1f6466166d91ad02765ae947be"
 ORDER=("VQ","QG","CASHQ")
 METRICS=("rank_ic_mean","pearson_ic_mean","rank_ic_ir","pearson_ic_ir","rank_ic_hac_t_stat","pearson_ic_hac_t_stat","rank_ic_positive_ratio","pearson_ic_positive_ratio","quantile_returns","long_short_mean","monotonicity_spearman","fm_mean_r2","rank_ic_rolling_stability")
+M_COMPARISON_HASH_CONTRACT_VERSION="FIN-P3-INFO-GAIN-03A-HASH-v2.0"
+M_COMPARISON_FINGERPRINT_FLOAT_DECIMALS=10
 COMMON={"rank_ic_mean":("mean_rank_ic","rank_ic_mean","higher"),"rank_ic_ir":("icir","rank_ic_ir","higher"),"rank_ic_positive_ratio":("positive_ic_ratio","rank_ic_positive_ratio","higher"),"quantile_returns":("group_returns","quantile_returns","detail_only"),"long_short_mean":("long_short_spread","long_short_mean","higher"),"monotonicity_spearman":("monotonicity","monotonicity_spearman","higher")}
 
 @dataclass(frozen=True)
@@ -84,10 +84,5 @@ def serialize_m_info_gain_result(result):
  if not isinstance(result,MInfoGainResult):raise TypeError("result must be MInfoGainResult")
  return json.dumps(_canon(result.to_dict()),ensure_ascii=False,sort_keys=True,separators=(",",":"),allow_nan=False)
 def _canon(v):
- if isinstance(v,Mapping):return {str(k):_canon(x) for k,x in sorted(v.items(),key=lambda p:str(p[0]))}
- if isinstance(v,(list,tuple)):return [_canon(x) for x in v]
- if v is None or isinstance(v,(str,bool,int)):return v
- if isinstance(v,(float,np.floating)):return float(v) if math.isfinite(float(v)) else None
- if isinstance(v,np.integer):return int(v)
- raise TypeError(type(v).__name__)
-def _hash(domain,value):return hashlib.sha256(json.dumps({"domain":domain,"value":_canon(value)},ensure_ascii=False,sort_keys=True,separators=(",",":"),allow_nan=False).encode()).hexdigest()
+ return canonicalize_financial_fingerprint(v,float_decimals=M_COMPARISON_FINGERPRINT_FLOAT_DECIMALS)
+def _hash(domain,value):return hashlib.sha256(json.dumps({"domain":domain,"hash_contract_version":M_COMPARISON_HASH_CONTRACT_VERSION,"value":_canon(value)},ensure_ascii=False,sort_keys=True,separators=(",",":"),allow_nan=False).encode()).hexdigest()

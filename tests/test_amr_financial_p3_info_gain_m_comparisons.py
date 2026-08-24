@@ -19,8 +19,8 @@ def result(inputs): return compare_financial_p3_info_gain_m(*inputs,configuratio
 def test_golden_pairwise_result(result):
  assert result.audit.gate_status=="ready";assert (result.audit.combo_count,result.audit.member_count,result.audit.comparison_count)==(3,11,143)
  assert (result.audit.completed_comparison_count,result.audit.not_evaluable_count)==(66,77)
- assert result.audit.output_fingerprint=="aa32f025ae82886060f1c7dae45e6140a96ff2c8d984bda6db8b40c325b1784a"
- assert result.audit.content_hash=="68eb73c8f9a505d039f4a069258245ef6cb7c220a092233589f4908fc6ed726e"
+ assert result.audit.output_fingerprint=="361bfc4f299e929c7d1177f659f82da4ed47194d791a79fa354520c67e46bc4f"
+ assert result.audit.content_hash=="1e5c56eed284c6bf288756e534fdc65bfec0d7af516df513e34cf0168ad13de7"
 def test_only_common_metrics_have_increments(result):
  rows=[r for c in result.combinations for r in c.member_comparisons]
  for r in rows:

@@ -20,19 +20,34 @@ FINANCIAL_FINGERPRINT_CONTRACT_VERSION = "FIN-FINGERPRINT-v2.0"
 FINANCIAL_FINGERPRINT_FLOAT_DECIMALS = 12
 
 
-def canonicalize_financial_fingerprint(value: Any) -> Any:
+def canonicalize_financial_fingerprint(
+    value: Any,
+    *,
+    float_decimals: int = FINANCIAL_FINGERPRINT_FLOAT_DECIMALS,
+) -> Any:
     """Return a stable JSON-compatible representation under the v2 contract."""
+    if not isinstance(float_decimals, int) or not 0 <= float_decimals <= 15:
+        raise ValueError("float_decimals must be an integer from 0 through 15")
     if isinstance(value, Mapping):
         return {
-            str(key): canonicalize_financial_fingerprint(item)
+            str(key): canonicalize_financial_fingerprint(
+                item, float_decimals=float_decimals
+            )
             for key, item in sorted(value.items(), key=lambda pair: str(pair[0]))
         }
     if isinstance(value, Sequence) and not isinstance(
         value, (str, bytes, bytearray)
     ):
-        return [canonicalize_financial_fingerprint(item) for item in value]
+        return [
+            canonicalize_financial_fingerprint(
+                item, float_decimals=float_decimals
+            )
+            for item in value
+        ]
     if isinstance(value, Enum):
-        return canonicalize_financial_fingerprint(value.value)
+        return canonicalize_financial_fingerprint(
+            value.value, float_decimals=float_decimals
+        )
     if value is None or value is pd.NA or value is pd.NaT:
         return None
     if isinstance(value, (bool, np.bool_)):
@@ -45,7 +60,7 @@ def canonicalize_financial_fingerprint(value: Any) -> Any:
             return None
         if math.isinf(number):
             return "Infinity" if number > 0 else "-Infinity"
-        rounded = round(number, FINANCIAL_FINGERPRINT_FLOAT_DECIMALS)
+        rounded = round(number, float_decimals)
         return 0.0 if rounded == 0.0 else rounded
     if isinstance(value, pd.Timestamp):
         value = value.to_pydatetime()
@@ -60,7 +75,9 @@ def canonicalize_financial_fingerprint(value: Any) -> Any:
     if isinstance(value, str):
         return value
     if isinstance(value, np.generic):
-        return canonicalize_financial_fingerprint(value.item())
+        return canonicalize_financial_fingerprint(
+            value.item(), float_decimals=float_decimals
+        )
     raise TypeError(
         f"unsupported financial fingerprint type: {type(value).__name__}"
     )

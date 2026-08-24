@@ -12,7 +12,7 @@ import numpy as np
 from backend.amr.financial_p3_combinations import FinancialP3CombinationsResult
 from backend.amr.financial_p3_info_gain_f_member_baselines import FMemberBaselineResult
 
-COMBO_FP="7188b1deb543e4357a6df51cafd91d1e3948ebd1440b9130e87427580a37df30"; MEMBER_FP="657bd843d245aa2379105612acfe0cabc7c09da538819a2abd6719352c22e64c"; CONTRACT_HASH="6a8b42f96407d0ed9659fc6f18a76d2c0e2a6a870eed25b0fc18decba9c9f844"; ORDER=("VQ","QG","CASHQ"); METRICS=("oos_mae","relative_mae_improvement","residual_rank_ic","interval_coverage","interval_calibration_error")
+COMBO_FP="73f37667bbb7323cee65dfd89b16a31109f3bd2bc4e65e775dcf37e47a2195d8"; MEMBER_FP="657bd843d245aa2379105612acfe0cabc7c09da538819a2abd6719352c22e64c"; CONTRACT_HASH="e3a5c83fbb7fd5ea47f744992294a742dfaa5c1f6466166d91ad02765ae947be"; ORDER=("VQ","QG","CASHQ"); METRICS=("oos_mae","relative_mae_improvement","residual_rank_ic","interval_coverage","interval_calibration_error")
 @dataclass(frozen=True)
 class FInfoGainComparisonConfig:
  run_id:str; accepted_combination_fingerprint:str=COMBO_FP; accepted_member_fingerprint:str=MEMBER_FP; accepted_contract_hash:str=CONTRACT_HASH; synthetic_test_only:bool=True

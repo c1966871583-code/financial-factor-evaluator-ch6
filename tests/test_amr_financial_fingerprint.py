@@ -4,6 +4,7 @@ from datetime import UTC, datetime
 
 import numpy as np
 import pandas as pd
+import pytest
 
 from backend.amr.financial_fingerprint import (
     FINANCIAL_FINGERPRINT_CONTRACT_VERSION,
@@ -25,6 +26,15 @@ def test_v2_floats_have_fixed_precision_and_special_value_rules():
     assert canonicalize_financial_fingerprint(float("nan")) is None
     assert canonicalize_financial_fingerprint(float("inf")) == "Infinity"
     assert canonicalize_financial_fingerprint(float("-inf")) == "-Infinity"
+
+
+def test_v2_allows_a_versioned_consumer_precision():
+    value = {"nested": [1.123456789049]}
+    assert canonicalize_financial_fingerprint(
+        value, float_decimals=10
+    ) == {"nested": [1.123456789]}
+    with pytest.raises(ValueError):
+        canonicalize_financial_fingerprint(value, float_decimals=16)
 
 
 def test_v2_dates_and_mapping_order_are_canonical():
