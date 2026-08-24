@@ -11,7 +11,7 @@ from backend.amr.financial_p3_info_gain_summary import InfoGainSummaryResult
 from backend.amr.financial_p3_info_gain_task_gate import InfoGainTaskGateResult
 from backend.amr.financial_p3_research_log_contract import ResearchLogSchema
 
-TASK_FP="719f020d6892e4d04b78aa3ee165954d47696bc466549b93482c6d35cd4a5b6b"
+TASK_FP="e4b3fb2e1eb9218da61cdc78375680bf0dd5035467b6ad1f110c36d9d53f9c27"
 TASK_GATE_READY_STATUSES=frozenset({"accepted","ready"})
 @dataclass(frozen=True)
 class ResearchLogLineageSnapshot:
