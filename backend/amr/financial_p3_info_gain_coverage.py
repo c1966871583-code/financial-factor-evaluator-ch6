@@ -12,7 +12,7 @@ import numpy as np
 from backend.amr.financial_p3_combinations import FinancialP3CombinationsResult
 from backend.amr.financial_p3_info_gain_inputs import InfoGainInputPreparationResult
 
-COMBO_FP="64333639b7cd9906c8dec6ce330bc8e9bef01a53ba46ec1e7f5554109c629a45";INPUT_FP="1599c601f11da9d67adf7d538f80fe75488ac2481c0794678d6660589ea1c48e";ORDER=("VQ","QG","CASHQ")
+COMBO_FP="514e5296ac1ca3afc4dc9d43882579cd43d4830a4234e75b9e95685119e7838a";INPUT_FP="1599c601f11da9d67adf7d538f80fe75488ac2481c0794678d6660589ea1c48e";ORDER=("VQ","QG","CASHQ")
 @dataclass(frozen=True)
 class CoverageConfig:
  run_id:str;accepted_combination_fingerprint:str=COMBO_FP;accepted_input_fingerprint:str=INPUT_FP;synthetic_test_only:bool=True

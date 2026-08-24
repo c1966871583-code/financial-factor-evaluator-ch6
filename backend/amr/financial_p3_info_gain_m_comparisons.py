@@ -11,9 +11,9 @@ from backend.amr.financial_fingerprint import canonicalize_financial_fingerprint
 from backend.amr.financial_p3_combinations import FinancialP3CombinationsResult
 from backend.amr.financial_p3_info_gain_m_member_baselines import MMemberBaselineResult
 
-COMBO_FP="64333639b7cd9906c8dec6ce330bc8e9bef01a53ba46ec1e7f5554109c629a45"
+COMBO_FP="514e5296ac1ca3afc4dc9d43882579cd43d4830a4234e75b9e95685119e7838a"
 MEMBER_FP="787ea0899fd5822acc7b368b13c79e6ce0d0bc0bf49ac097dbf83d64d62d4917"
-CONTRACT_HASH="abd60138eaa90418b70d015f701d56690b602abcd9247cd6f78b27e974bf6d55"
+CONTRACT_HASH="0d2016de40a3babdb2bd973f94a1876b7a6046ee2578b2e07657cccaf78a124b"
 ORDER=("VQ","QG","CASHQ")
 METRICS=("rank_ic_mean","pearson_ic_mean","rank_ic_ir","pearson_ic_ir","rank_ic_hac_t_stat","pearson_ic_hac_t_stat","rank_ic_positive_ratio","pearson_ic_positive_ratio","quantile_returns","long_short_mean","monotonicity_spearman","fm_mean_r2","rank_ic_rolling_stability")
 M_COMPARISON_HASH_CONTRACT_VERSION="FIN-P3-INFO-GAIN-03A-HASH-v2.1"

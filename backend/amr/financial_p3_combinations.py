@@ -36,7 +36,7 @@ from backend.amr.financial_p3_common_sample import (
 COMBINATIONS_SCHEMA_VERSION = "FinancialP3Combinations-v1.0"
 COMBINATIONS_AUDIT_SCHEMA_VERSION = "FinancialP3CombinationsAudit-v1.0"
 COMBINATIONS_POLICY_VERSION = "FIN-P3-COMBOS-POLICY-v1.0"
-COMBINATIONS_HASH_CONTRACT_VERSION = "FIN-P3-COMBOS-HASH-v2.3"
+COMBINATIONS_HASH_CONTRACT_VERSION = "FIN-P3-COMBOS-HASH-v2.4"
 COMBINATIONS_FINGERPRINT_FLOAT_DECIMALS = 8
 COMBINATIONS_PREDECESSOR_OUTPUT_FINGERPRINT = (
     "a15859003aadf685aeea6bc9941aa62133bba0cf8e5913a1289735d33d94ce6e"
@@ -1266,6 +1266,7 @@ def _without_nested_content_hashes(value: Any) -> Any:
             key: _without_nested_content_hashes(item)
             for key, item in value.items()
             if str(key) != "content_hash"
+            and not str(key).endswith("_fingerprint")
         }
     if isinstance(value, (list, tuple)):
         return [_without_nested_content_hashes(item) for item in value]

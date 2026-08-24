@@ -20,7 +20,7 @@ def test_golden_pairwise_result(result):
  assert result.audit.gate_status=="ready";assert (result.audit.combo_count,result.audit.member_count,result.audit.comparison_count)==(3,11,143)
  assert (result.audit.completed_comparison_count,result.audit.not_evaluable_count)==(66,77)
  assert result.audit.output_fingerprint=="b4397b1c454deaa0239fd020f9c77d009fd801eb382f385b8929ac80542588f1"
- assert result.audit.content_hash=="828430c2c0e8f8b4420a50e7f943fd6e76b29dcf208ebc59a7e0ca32fcb89c15"
+ assert result.audit.content_hash=="1694a6b608c2116cb7fad5d4173d8b37df05a2259399eaf83425f3293ac13875"
 def test_only_common_metrics_have_increments(result):
  rows=[r for c in result.combinations for r in c.member_comparisons]
  for r in rows:

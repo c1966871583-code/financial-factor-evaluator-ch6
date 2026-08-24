@@ -16,7 +16,7 @@ def result(inputs):return compare_financial_p3_info_gain_f(*inputs,configuration
 def test_golden(result):
  assert result.audit.gate_status=="ready" and result.audit.comparison_count==result.audit.not_evaluable_count==55
  assert result.audit.output_fingerprint=="04998ae6e9bfda4fa0182b24d902d556879b438169438beacf67055997f77825"
- assert result.audit.content_hash=="078a13f721ca3db30dc059970929bf8ba986a5e62567c182add10ee52b4d42e2"
+ assert result.audit.content_hash=="a907eeb569860bf386cc6cbb903f74756d09a42a5fa00472d6241c178005671c"
 def test_all_rows_are_formal_not_evaluable(result):
  assert {x.calculation_status for x in result.comparisons}=={"not_evaluable"};assert {x.reason_code for x in result.comparisons}=={"F_COMBO_AND_MEMBER_CONTEXT_NOT_FROZEN"};assert all(x.combo_metric_value is None and x.member_metric_value is None for x in result.comparisons)
 def test_no_f_evaluator_or_selection(result):
