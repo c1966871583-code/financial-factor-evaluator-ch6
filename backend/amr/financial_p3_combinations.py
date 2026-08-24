@@ -36,7 +36,7 @@ from backend.amr.financial_p3_common_sample import (
 COMBINATIONS_SCHEMA_VERSION = "FinancialP3Combinations-v1.0"
 COMBINATIONS_AUDIT_SCHEMA_VERSION = "FinancialP3CombinationsAudit-v1.0"
 COMBINATIONS_POLICY_VERSION = "FIN-P3-COMBOS-POLICY-v1.0"
-COMBINATIONS_HASH_CONTRACT_VERSION = "FIN-P3-COMBOS-HASH-v2.2"
+COMBINATIONS_HASH_CONTRACT_VERSION = "FIN-P3-COMBOS-HASH-v2.3"
 COMBINATIONS_FINGERPRINT_FLOAT_DECIMALS = 8
 COMBINATIONS_PREDECESSOR_OUTPUT_FINGERPRINT = (
     "a15859003aadf685aeea6bc9941aa62133bba0cf8e5913a1289735d33d94ce6e"
@@ -1249,7 +1249,7 @@ def _hash(domain: str, value: Any) -> str:
         {
             "domain": domain,
             "hash_contract_version": COMBINATIONS_HASH_CONTRACT_VERSION,
-            "value": _canonical(value),
+            "value": _canonical(_without_nested_content_hashes(value)),
         },
         ensure_ascii=False,
         sort_keys=True,
@@ -1257,6 +1257,19 @@ def _hash(domain: str, value: Any) -> str:
         allow_nan=False,
     ).encode("utf-8")
     return hashlib.sha256(payload).hexdigest()
+
+
+def _without_nested_content_hashes(value: Any) -> Any:
+    """Hash semantic payloads without recursively hashing embedded hashes."""
+    if isinstance(value, Mapping):
+        return {
+            key: _without_nested_content_hashes(item)
+            for key, item in value.items()
+            if str(key) != "content_hash"
+        }
+    if isinstance(value, (list, tuple)):
+        return [_without_nested_content_hashes(item) for item in value]
+    return value
 
 
 __all__ = [
