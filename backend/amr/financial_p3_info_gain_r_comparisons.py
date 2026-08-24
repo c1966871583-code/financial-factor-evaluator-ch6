@@ -12,7 +12,7 @@ import numpy as np
 from backend.amr.financial_p3_combinations import FinancialP3CombinationsResult
 from backend.amr.financial_p3_info_gain_r_member_baselines import RMemberBaselineResult
 
-COMBO_FP="73f37667bbb7323cee65dfd89b16a31109f3bd2bc4e65e775dcf37e47a2195d8";MEMBER_FP="91ead71b3767a31ad0fb23cdff91c9c6372a8d77bbd68d552b23ebc4cf7a2e2e";CONTRACT_HASH="e3a5c83fbb7fd5ea47f744992294a742dfaa5c1f6466166d91ad02765ae947be";ORDER=("VQ","QG","CASHQ");METRICS=("pr_auc","roc_auc","brier_score","top_k_hit_rate","expected_calibration_error")
+COMBO_FP="b6e6a8a1bfa43d84bb040892ad577c943d06ae1c2fc76b03772be6aa19197aef";MEMBER_FP="91ead71b3767a31ad0fb23cdff91c9c6372a8d77bbd68d552b23ebc4cf7a2e2e";CONTRACT_HASH="bd0c1971bb059cabc4fc3128f513f74da466afa7d0c40ab1d38dc546e85f68a7";ORDER=("VQ","QG","CASHQ");METRICS=("pr_auc","roc_auc","brier_score","top_k_hit_rate","expected_calibration_error")
 @dataclass(frozen=True)
 class RInfoGainComparisonConfig:
  run_id:str;accepted_combination_fingerprint:str=COMBO_FP;accepted_member_fingerprint:str=MEMBER_FP;accepted_contract_hash:str=CONTRACT_HASH;synthetic_test_only:bool=True

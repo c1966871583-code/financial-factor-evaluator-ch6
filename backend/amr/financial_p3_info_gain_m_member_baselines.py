@@ -41,7 +41,8 @@ INFO_GAIN_02B_AUDIT_SCHEMA_VERSION = (
     "FinancialP3InfoGainMMemberBaselineAudit-v1.0"
 )
 INFO_GAIN_02B_POLICY_VERSION = "FIN-P3-INFO-GAIN-02B-POLICY-v1.0"
-INFO_GAIN_02B_HASH_CONTRACT_VERSION = "FIN-P3-INFO-GAIN-02B-HASH-v2.0"
+INFO_GAIN_02B_HASH_CONTRACT_VERSION = "FIN-P3-INFO-GAIN-02B-HASH-v2.1"
+INFO_GAIN_02B_FINGERPRINT_FLOAT_DECIMALS = 8
 INFO_GAIN_02B_PRODUCTION_STATUS = "not production ready"
 INFO_GAIN_02B_CONCLUSION_BOUNDARY = (
     "M-track common-sample member baselines only. No F/R evaluation, "
@@ -53,7 +54,7 @@ ACCEPTED_INFO_GAIN_02A_OUTPUT_FINGERPRINT = (
     "1599c601f11da9d67adf7d538f80fe75488ac2481c0794678d6660589ea1c48e"
 )
 ACCEPTED_INFO_GAIN_CONTRACT_HASH = (
-    "e3a5c83fbb7fd5ea47f744992294a742dfaa5c1f6466166d91ad02765ae947be"
+    "bd0c1971bb059cabc4fc3128f513f74da466afa7d0c40ab1d38dc546e85f68a7"
 )
 ACCEPTED_M_EVALUATOR_SOURCE_SHA256 = (
     "94e5c4a7808273fd4d6f5158b5cabc9dc07cdd0bd94dcbca91802a4d0bd74cea"
@@ -559,7 +560,10 @@ def _required_text(value, field_name):
 
 
 def _canonical(value):
-    return canonicalize_financial_fingerprint(value)
+    return canonicalize_financial_fingerprint(
+        value,
+        float_decimals=INFO_GAIN_02B_FINGERPRINT_FLOAT_DECIMALS,
+    )
 
 
 def _hash(domain, value):

@@ -9,7 +9,7 @@ from typing import Any
 from backend.amr.financial_p3_info_gain_bad_data_gate import BadDataGateResult
 from backend.amr.financial_p3_info_gain_summary import InfoGainSummaryResult
 
-SUMMARY_FP="c928b5137fba721d9f8ec02b841bdd4310fc0039a5c1339ab72ceb8735079e87";BAD_DATA_FP="a267d8e44bf0ffd4ce3b6632afaf58ee3ebfc9877da65bf8982e14ecce9f29f2"
+SUMMARY_FP="beedee8a2c2b36beb62c9eff36b7e12ceebf78b41d93895a551dc1f16561121f";BAD_DATA_FP="a267d8e44bf0ffd4ce3b6632afaf58ee3ebfc9877da65bf8982e14ecce9f29f2"
 @dataclass(frozen=True)
 class InfoGainTaskGateConfig:
  run_id:str;accepted_summary_fingerprint:str=SUMMARY_FP;accepted_bad_data_gate_fingerprint:str=BAD_DATA_FP

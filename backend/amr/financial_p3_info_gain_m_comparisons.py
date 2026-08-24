@@ -11,13 +11,13 @@ from backend.amr.financial_fingerprint import canonicalize_financial_fingerprint
 from backend.amr.financial_p3_combinations import FinancialP3CombinationsResult
 from backend.amr.financial_p3_info_gain_m_member_baselines import MMemberBaselineResult
 
-COMBO_FP="73f37667bbb7323cee65dfd89b16a31109f3bd2bc4e65e775dcf37e47a2195d8"
-MEMBER_FP="6a60ae604713997965de4322a2c3b0b5e83619ae92b3cb2ca8c0b3eade8baa2f"
-CONTRACT_HASH="e3a5c83fbb7fd5ea47f744992294a742dfaa5c1f6466166d91ad02765ae947be"
+COMBO_FP="b6e6a8a1bfa43d84bb040892ad577c943d06ae1c2fc76b03772be6aa19197aef"
+MEMBER_FP="787ea0899fd5822acc7b368b13c79e6ce0d0bc0bf49ac097dbf83d64d62d4917"
+CONTRACT_HASH="bd0c1971bb059cabc4fc3128f513f74da466afa7d0c40ab1d38dc546e85f68a7"
 ORDER=("VQ","QG","CASHQ")
 METRICS=("rank_ic_mean","pearson_ic_mean","rank_ic_ir","pearson_ic_ir","rank_ic_hac_t_stat","pearson_ic_hac_t_stat","rank_ic_positive_ratio","pearson_ic_positive_ratio","quantile_returns","long_short_mean","monotonicity_spearman","fm_mean_r2","rank_ic_rolling_stability")
-M_COMPARISON_HASH_CONTRACT_VERSION="FIN-P3-INFO-GAIN-03A-HASH-v2.0"
-M_COMPARISON_FINGERPRINT_FLOAT_DECIMALS=10
+M_COMPARISON_HASH_CONTRACT_VERSION="FIN-P3-INFO-GAIN-03A-HASH-v2.1"
+M_COMPARISON_FINGERPRINT_FLOAT_DECIMALS=8
 COMMON={"rank_ic_mean":("mean_rank_ic","rank_ic_mean","higher"),"rank_ic_ir":("icir","rank_ic_ir","higher"),"rank_ic_positive_ratio":("positive_ic_ratio","rank_ic_positive_ratio","higher"),"quantile_returns":("group_returns","quantile_returns","detail_only"),"long_short_mean":("long_short_spread","long_short_mean","higher"),"monotonicity_spearman":("monotonicity","monotonicity_spearman","higher")}
 
 @dataclass(frozen=True)
