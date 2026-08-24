@@ -71,7 +71,11 @@ def make_mvp_batch_inputs(path_type="A"):
         records,
         lineage_references,
         sample_references,
-        MVPBatchConfig(),
+        MVPBatchConfig(
+            universe="ALL_A_SHARE",
+            universe_version="synthetic-all-a-v1",
+            universe_filter="listed_and_pit_eligible",
+        ),
         deepcopy(list(SYNTHETIC_FUTURE_LABELS)),
     )
 

@@ -1,12 +1,19 @@
 """Contract tests for INFO-GAIN-02D formal R-track not_run baselines."""
 from __future__ import annotations
+
 import dataclasses
 import json
 from pathlib import Path
+
 import pytest
+
 import backend.amr.financial_p3_info_gain_r_member_baselines as subject
 from backend.amr.financial_p3_info_gain_r_member_baselines import *
-from tests.fixtures.synthetic_financial_p3_info_gain_r_member_baseline_cases import make_configuration, make_prepared_inputs
+from tests.fixtures.synthetic_financial_p3_info_gain_r_member_baseline_cases import (
+    make_configuration,
+    make_prepared_inputs,
+)
+
 
 @pytest.fixture(scope="module")
 def prepared(): return make_prepared_inputs()
@@ -17,7 +24,7 @@ def test_golden_formal_not_run(result):
     assert result.audit.gate_status == "ready"
     assert result.audit.input_fingerprint == ACCEPTED_02A
     assert result.audit.output_fingerprint == "91ead71b3767a31ad0fb23cdff91c9c6372a8d77bbd68d552b23ebc4cf7a2e2e"
-    assert result.audit.content_hash == "3c6fee677ce8efcd74f88dd672254726bb0be4984572fcce68b29785dae22a95"
+    assert result.audit.content_hash == "f2d07280cb347378b5cbf180de5f55fdb39a472d9dbc5a65ac7c927cadec4a23"
     assert (result.audit.member_run_count,result.audit.completed_run_count,result.audit.not_run_count)==(11,0,11)
 
 def test_every_member_has_explicit_non_numeric_r_metrics(result):

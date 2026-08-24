@@ -1,12 +1,18 @@
 """INFO-GAIN-04: report frozen common-sample coverage cost without selection."""
 from __future__ import annotations
-import hashlib,json,math
+
+import hashlib
+import json
+import math
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any,Mapping
+
 import numpy as np
+
 from backend.amr.financial_p3_combinations import FinancialP3CombinationsResult
 from backend.amr.financial_p3_info_gain_inputs import InfoGainInputPreparationResult
-COMBO_FP="7c8686b44f3842f159b3fbbc45aa9908f3bf81acd5ebec381f8ac4f5c1933fa2";INPUT_FP="b9e395416742f79edfd992d176582432ce644251f46cbfadb7d5a9ab661a43ef";ORDER=("VQ","QG","CASHQ")
+
+COMBO_FP="7c8686b44f3842f159b3fbbc45aa9908f3bf81acd5ebec381f8ac4f5c1933fa2";INPUT_FP="1599c601f11da9d67adf7d538f80fe75488ac2481c0794678d6660589ea1c48e";ORDER=("VQ","QG","CASHQ")
 @dataclass(frozen=True)
 class CoverageConfig:
  run_id:str;accepted_combination_fingerprint:str=COMBO_FP;accepted_input_fingerprint:str=INPUT_FP;synthetic_test_only:bool=True

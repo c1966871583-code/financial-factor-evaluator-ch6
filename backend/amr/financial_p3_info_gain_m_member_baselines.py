@@ -12,9 +12,10 @@ import hashlib
 import inspect
 import json
 import math
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Mapping, Sequence
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -31,9 +32,9 @@ from backend.amr.financial_p3_info_gain_contract import INFO_GAIN_COMBO_ORDER
 from backend.amr.financial_p3_info_gain_inputs import (
     InfoGainInputPreparationResult,
     PreparedInfoGainCommonSampleInput,
+    compute_info_gain_input_output_fingerprint,
     serialize_info_gain_input_preparation_result,
 )
-
 
 INFO_GAIN_02B_SCHEMA_VERSION = "FinancialP3InfoGainMMemberBaselines-v1.0"
 INFO_GAIN_02B_AUDIT_SCHEMA_VERSION = (
@@ -49,7 +50,7 @@ INFO_GAIN_02B_CONCLUSION_BOUNDARY = (
 )
 
 ACCEPTED_INFO_GAIN_02A_OUTPUT_FINGERPRINT = (
-    "b9e395416742f79edfd992d176582432ce644251f46cbfadb7d5a9ab661a43ef"
+    "1599c601f11da9d67adf7d538f80fe75488ac2481c0794678d6660589ea1c48e"
 )
 ACCEPTED_INFO_GAIN_CONTRACT_HASH = (
     "e6d51313ae0fb326d4b239dbb3aefe542c8d5d623237b05e7678959436766747"
@@ -302,7 +303,7 @@ def evaluate_financial_p3_info_gain_m_member_baselines(
                     configuration=configuration,
                     evaluator_hash=evaluator_hash,
                 )
-            except Exception as exc:  # retain auditable failure instead of hiding it
+            except Exception as exc:  # noqa: BLE001 - evaluator boundary is audited
                 evaluation_errors.append(
                     MMemberBaselineIssue(
                         code="M_EVALUATOR_CALL_FAILED",
@@ -366,8 +367,8 @@ def _validate_prepared(prepared, configuration, evaluator_hash):
     if audit.gate_status != "ready" or audit.errors:
         errors.append(_issue("INFO_GAIN_02A_NOT_READY", "02A input gate must be ready"))
     if audit.output_fingerprint != configuration.accepted_02a_output_fingerprint:
-        errors.append(_issue("INFO_GAIN_02A_FINGERPRINT_MISMATCH", "02A output fingerprint drifted"))
-    recomputed = _hash("p3_info_gain_02a_output", [item.to_dict() for item in prepared.packages])
+        errors.append(_issue("INFO_GAIN_02A_FINGERPRINT_MISMATCH", f"02A output fingerprint drifted: expected={configuration.accepted_02a_output_fingerprint} actual={audit.output_fingerprint}"))
+    recomputed = compute_info_gain_input_output_fingerprint(prepared.packages)
     if recomputed != audit.output_fingerprint:
         errors.append(_issue("INFO_GAIN_02A_CONTENT_MISMATCH", "02A packages do not match the accepted output fingerprint"))
     if audit.contract_hash != configuration.accepted_contract_hash:

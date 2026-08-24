@@ -49,7 +49,7 @@ def test_golden_gate_and_fingerprints(result):
     assert not result.audit.errors
     assert result.audit.input_fingerprint == ACCEPTED_INFO_GAIN_02A_OUTPUT_FINGERPRINT
     assert result.audit.output_fingerprint == "2a92a8b8896c4dc153853e0bf23c3c1dd950747d7552dd2ca5373480fe541970"
-    assert result.audit.content_hash == "d97d11240a9c93926983da05353a802bda445085bfa542fb2fccc0da365b7d7a"
+    assert result.audit.content_hash == "c9ff83904fde598b8f0e6af86c213394e59dab980144c6aa4fd6a3d022b2b7a6"
 
 
 def test_all_eleven_combo_member_runs_are_completed(result):

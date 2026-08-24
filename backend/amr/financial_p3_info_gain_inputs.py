@@ -11,14 +11,18 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
-import math
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from types import MappingProxyType
-from typing import Any, Mapping, Sequence
+from typing import Any
 
 import numpy as np
 import pandas as pd
 
+from backend.amr.financial_fingerprint import (
+    FINANCIAL_FINGERPRINT_CONTRACT_VERSION,
+    canonicalize_financial_fingerprint,
+)
 from backend.amr.financial_p3_common_sample import (
     COMMON_SAMPLE_HASH_CONTRACT_VERSION,
 )
@@ -30,13 +34,12 @@ from backend.amr.financial_p3_info_gain_contract import (
     InfoGainEvaluationConfig,
 )
 
-
 INFO_GAIN_INPUT_SCHEMA_VERSION = "FinancialP3InfoGainInputPackage-v1.0"
 INFO_GAIN_INPUT_AUDIT_SCHEMA_VERSION = (
     "FinancialP3InfoGainInputPreparationAudit-v1.0"
 )
 INFO_GAIN_INPUT_POLICY_VERSION = "FIN-P3-INFO-GAIN-02A-POLICY-v1.0"
-INFO_GAIN_INPUT_HASH_CONTRACT_VERSION = "FIN-P3-INFO-GAIN-02A-HASH-v1.0"
+INFO_GAIN_INPUT_HASH_CONTRACT_VERSION = "FIN-P3-INFO-GAIN-02A-HASH-v2.0"
 INFO_GAIN_INPUT_CONCLUSION_BOUNDARY = (
     "Frozen common-sample input preparation only. No sample reconstruction, "
     "combination construction, M/F/R evaluation, metric, strongest-member "
@@ -87,6 +90,8 @@ class InfoGainInputIssue:
     combo_id: str | None = None
     member_factor_id: str | None = None
     field_name: str | None = None
+    expected_value: str | None = None
+    actual_value: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -95,6 +100,8 @@ class InfoGainInputIssue:
             "combo_id": self.combo_id,
             "member_factor_id": self.member_factor_id,
             "field_name": self.field_name,
+            "expected_value": self.expected_value,
+            "actual_value": self.actual_value,
         }
 
 
@@ -474,6 +481,16 @@ def serialize_info_gain_input_preparation_result(
     )
 
 
+def compute_info_gain_input_output_fingerprint(
+    packages: Sequence[PreparedInfoGainCommonSampleInput],
+) -> str:
+    """Recompute the 02A output under its declared v2 hash contract."""
+    return _hash(
+        "p3_info_gain_02a_output",
+        [item.to_dict() for item in packages],
+    )
+
+
 def _prepare_one(batch, configuration):
     errors: list[InfoGainInputIssue] = []
     warnings: list[InfoGainInputIssue] = []
@@ -521,7 +538,15 @@ def _prepare_one(batch, configuration):
             errors.append(_issue("SAMPLE_PERIOD_COUNT_MISMATCH", "common sample period count drifted", batch.combo_id))
         actual_fingerprint = _common_sample_fingerprint(manifest)
         if actual_fingerprint != sample_ref.common_sample_fingerprint:
-            errors.append(_issue("ACTUAL_SAMPLE_FINGERPRINT_MISMATCH", "explicit common sample keys drifted", batch.combo_id))
+            errors.append(
+                _issue(
+                    "ACTUAL_SAMPLE_FINGERPRINT_MISMATCH",
+                    "explicit common sample keys drifted",
+                    batch.combo_id,
+                    expected_value=sample_ref.common_sample_fingerprint,
+                    actual_value=actual_fingerprint,
+                )
+            )
     missing_observations = set(_MEMBER_FRAME_COLUMNS) - set(observations.columns)
     if missing_observations:
         errors.append(_issue("MEMBER_COLUMNS_MISSING", "member observation columns are missing", batch.combo_id, field_name=",".join(sorted(missing_observations))))
@@ -538,9 +563,10 @@ def _prepare_one(batch, configuration):
             [*_KEY_COLUMNS, "member_factor_id"], kind="stable"
         ).reset_index(drop=True)
     expected_members = tuple(item[0] for item in combo_ref.member_directions)
-    if not missing_observations:
-        if set(observations["member_factor_id"]) != set(expected_members):
-            errors.append(_issue("MEMBER_SET_MISMATCH", "member set does not match the frozen combo", batch.combo_id))
+    if not missing_observations and set(observations["member_factor_id"]) != set(
+        expected_members
+    ):
+        errors.append(_issue("MEMBER_SET_MISMATCH", "member set does not match the frozen combo", batch.combo_id))
     if not missing_manifest and not missing_observations:
         manifest_keys = _key_set(manifest)
         for member_id in expected_members:
@@ -857,9 +883,23 @@ def _frame_records(frame):
     return records
 
 
-def _issue(code, message, combo_id=None, member_factor_id=None, field_name=None):
+def _issue(
+    code,
+    message,
+    combo_id=None,
+    member_factor_id=None,
+    field_name=None,
+    expected_value=None,
+    actual_value=None,
+):
     return InfoGainInputIssue(
-        code, message, combo_id, member_factor_id, field_name
+        code,
+        message,
+        combo_id,
+        member_factor_id,
+        field_name,
+        expected_value,
+        actual_value,
     )
 
 
@@ -873,6 +913,8 @@ def _deduplicate(items):
             item.combo_id,
             item.member_factor_id,
             item.field_name,
+            item.expected_value,
+            item.actual_value,
         )
         if key not in seen:
             seen.add(key)
@@ -897,25 +939,18 @@ def _is_sha256(value):
 
 
 def _canonical(value):
-    if isinstance(value, Mapping):
-        return {
-            str(key): _canonical(item)
-            for key, item in sorted(value.items(), key=lambda pair: str(pair[0]))
-        }
-    if isinstance(value, (list, tuple)):
-        return [_canonical(item) for item in value]
-    if value is None or isinstance(value, (str, bool, int)):
-        return value
-    if isinstance(value, (float, np.floating)):
-        return float(value) if math.isfinite(float(value)) else None
-    if isinstance(value, np.integer):
-        return int(value)
-    raise TypeError(f"unsupported canonical type: {type(value).__name__}")
+    return canonicalize_financial_fingerprint(value)
 
 
 def _hash(domain, value):
     payload = json.dumps(
-        {"domain": domain, "value": _canonical(value)},
+        {
+            "canonicalization_contract_version": (
+                FINANCIAL_FINGERPRINT_CONTRACT_VERSION
+            ),
+            "domain": domain,
+            "value": _canonical(value),
+        },
         ensure_ascii=False,
         sort_keys=True,
         separators=(",", ":"),

@@ -26,6 +26,10 @@ from .evaluation_input_contract import (
     FinancialBatch,
     ValueScope,
 )
+from .financial_exposure_adapter import (
+    FinancialExposureAdapterResult,
+    adapt_exposure_batch_v1,
+)
 from .financial_lineage import (
     NOT_APPLICABLE,
     FinancialObservationLineage,
@@ -62,6 +66,15 @@ class MVPFactorId(str, Enum):
 
 class FinancialSectorType(str, Enum):
     NON_FINANCIAL = "NON_FINANCIAL"
+    BANK = "BANK"
+    INSURANCE = "INSURANCE"
+    SECURITIES = "SECURITIES"
+    DIVERSIFIED_FINANCIAL = "DIVERSIFIED_FINANCIAL"
+
+
+class FinancialUniverseScope(str, Enum):
+    ALL_A_SHARE = "ALL_A_SHARE"
+    NON_FINANCIAL_A_SHARE = "NON_FINANCIAL_A_SHARE"
     BANK = "BANK"
     INSURANCE = "INSURANCE"
     SECURITIES = "SECURITIES"
@@ -112,6 +125,8 @@ class MVPBatchErrorCode(str, Enum):
     FACTOR_VALUE_HASH_MISMATCH = "FACTOR_VALUE_HASH_MISMATCH"
     BATCH_CONSTRUCTION_FAILED = "BATCH_CONSTRUCTION_FAILED"
     INVALID_MVP_BATCH_INPUT = "INVALID_MVP_BATCH_INPUT"
+    EXPOSURE_BATCH_CONTRACT_INVALID = "EXPOSURE_BATCH_CONTRACT_INVALID"
+    EXPOSURE_VALUE_MISMATCH = "EXPOSURE_VALUE_MISMATCH"
 
 
 class MVPBatchLookupError(LookupError):
@@ -392,10 +407,12 @@ def _formula_result(
 
 @dataclass(frozen=True)
 class MVPBatchConfig:
+    universe: str
+    universe_version: str
+    universe_filter: str
     batch_version: str = "FIN-MVP-DATA-v1.0"
     batch_source: str = "fin-mvp-data-controlled-adapter"
     frequency: str = "quarterly"
-    universe: str = "PIT_NON_FIN_A_SHARE_V1"
     schema_version: str = MVP_BATCH_SCHEMA_VERSION
     formula_registry_version: str = FORMULA_REGISTRY_VERSION
 
@@ -405,6 +422,8 @@ class MVPBatchConfig:
             "batch_source",
             "frequency",
             "universe",
+            "universe_version",
+            "universe_filter",
             "schema_version",
             "formula_registry_version",
         ):
@@ -420,6 +439,8 @@ class MVPBatchConfig:
             "batch_source": self.batch_source,
             "frequency": self.frequency,
             "universe": self.universe,
+            "universe_version": self.universe_version,
+            "universe_filter": self.universe_filter,
             "schema_version": self.schema_version,
             "formula_registry_version": self.formula_registry_version,
         }
@@ -572,6 +593,10 @@ class FinancialBatchAudit:
     errors: tuple[MVPBatchIssue, ...]
     warnings: tuple[MVPBatchIssue, ...]
     content_hash: str
+    successful_count: int = 0
+    not_applicable_count: int = 0
+    missing_count: int = 0
+    failure_count: int = 0
 
     def to_dict(self, *, include_content_hash: bool = True) -> dict[str, Any]:
         payload = {
@@ -592,6 +617,19 @@ class FinancialBatchAudit:
             "errors": [item.to_dict() for item in self.errors],
             "warnings": [item.to_dict() for item in self.warnings],
         }
+        disposition_counts = (
+            self.successful_count,
+            self.not_applicable_count,
+            self.missing_count,
+            self.failure_count,
+        )
+        if any(disposition_counts):
+            payload.update(
+                successful_count=self.successful_count,
+                not_applicable_count=self.not_applicable_count,
+                missing_count=self.missing_count,
+                failure_count=self.failure_count,
+            )
         if include_content_hash:
             payload["content_hash"] = self.content_hash
         return payload
@@ -706,6 +744,7 @@ def build_mvp_financial_batches(
     sample_references: Mapping[str, SampleFormationReference],
     configuration: MVPBatchConfig,
     future_labels: Any = None,
+    exposure_batch: Any = None,
 ) -> MVPFinancialBatchResult:
     """Return three public batches only when the entire integration passes.
 
@@ -766,6 +805,76 @@ def build_mvp_financial_batches(
 
     errors: list[MVPBatchIssue] = []
     warnings: list[MVPBatchIssue] = []
+    not_applicable_keys: list[tuple[str, str, str]] = []
+    exposure_result: FinancialExposureAdapterResult | None = None
+    invalid_exposure_records: set[int] = set()
+    if exposure_batch is not None:
+        exposure_result = adapt_exposure_batch_v1(
+            exposure_batch,
+            evaluation_keys=tuple(
+                (item.get("evaluation_date"), item.get("code"))
+                for item in controlled_records
+                if isinstance(item, Mapping)
+            ),
+        )
+        if exposure_result.audit.gate_status != "ready":
+            errors.append(
+                _issue(
+                    MVPBatchErrorCode.EXPOSURE_BATCH_CONTRACT_INVALID,
+                    "; ".join(exposure_result.audit.errors),
+                    "exposure_batch",
+                )
+            )
+        else:
+            for index, item in enumerate(controlled_records):
+                if not isinstance(item, Mapping):
+                    continue
+                exposure = exposure_result.lookup(
+                    item.get("evaluation_date"), item.get("code")
+                )
+                if exposure.missing_reason is not None:
+                    invalid_exposure_records.add(index)
+                    errors.append(
+                        _issue(
+                            MVPBatchErrorCode.FINANCIAL_BATCH_REQUIRED_FIELD_MISSING,
+                            f"ExposureBatch-v1: {exposure.missing_reason}",
+                            "industry_code,total_market_cap",
+                            f"records[{index}]",
+                        )
+                    )
+                    continue
+                if item.get("sector_type") not in (
+                    None,
+                    exposure.industry_type,
+                ):
+                    invalid_exposure_records.add(index)
+                    errors.append(
+                        _issue(
+                            MVPBatchErrorCode.EXPOSURE_VALUE_MISMATCH,
+                            "sector_type differs from ExposureBatch-v1",
+                            "sector_type",
+                            f"records[{index}]",
+                        )
+                    )
+                    continue
+                item["sector_type"] = exposure.industry_type
+                if item.get("factor_id") == MVPFactorId.BP.value:
+                    formula_inputs = dict(item.get("formula_inputs") or {})
+                    declared_cap = formula_inputs.get("market_cap")
+                    if declared_cap not in (None, exposure.total_market_cap):
+                        invalid_exposure_records.add(index)
+                        errors.append(
+                            _issue(
+                                MVPBatchErrorCode.EXPOSURE_VALUE_MISMATCH,
+                                "BP market_cap differs from ExposureBatch-v1",
+                                "formula_inputs.market_cap",
+                                f"records[{index}]",
+                            )
+                        )
+                        continue
+                    formula_inputs["market_cap"] = exposure.total_market_cap
+                    item["formula_inputs"] = formula_inputs
+                    item["market_cap_as_of"] = exposure.evaluation_date
     _validate_reference_maps(lineage_references, sample_references, errors)
 
     observations: list[MVPBatchObservation] = []
@@ -781,12 +890,16 @@ def build_mvp_financial_batches(
                 )
             )
             continue
+        if index in invalid_exposure_records:
+            continue
         observation = _normalize_observation(
             dict(raw_record),
             record_key=record_key,
             lineage_references=lineage_references,
             sample_references=sample_references,
             errors=errors,
+            warnings=warnings,
+            not_applicable_keys=not_applicable_keys,
         )
         if observation is not None:
             observations.append(observation)
@@ -795,6 +908,7 @@ def build_mvp_financial_batches(
     _validate_observation_conflicts(observations, errors)
     _validate_cross_security_isolation(observations, errors)
     present_factors = {item.factor_id for item in observations}
+    present_factors.update(item[2] for item in not_applicable_keys)
     if present_factors != set(SUPPORTED_FACTOR_IDS):
         errors.append(
             _issue(
@@ -844,6 +958,7 @@ def build_mvp_financial_batches(
             observations,
             observation_reference=observation_reference,
             configuration=configuration,
+            exposure_result=exposure_result,
         )
         if construction_errors:
             errors = _deduplicate_issues([*errors, *construction_errors])
@@ -860,6 +975,8 @@ def build_mvp_financial_batches(
         batch_fingerprints=batch_fingerprints,
         configuration=configuration,
         ready=ready,
+        not_applicable_keys=tuple(not_applicable_keys),
+        exposure_result=exposure_result,
     )
     return MVPFinancialBatchResult(
         batches=batches if ready else (),
@@ -976,6 +1093,8 @@ def _normalize_observation(
     lineage_references: Mapping[str, ObservationLineageReference],
     sample_references: Mapping[str, SampleFormationReference],
     errors: list[MVPBatchIssue],
+    warnings: list[MVPBatchIssue],
+    not_applicable_keys: list[tuple[str, str, str]],
 ) -> MVPBatchObservation | None:
     dynamic_fields = sorted(
         field_name
@@ -1202,6 +1321,8 @@ def _normalize_observation(
         lineage=lineage,
         record_key=record_key,
         errors=errors,
+        warnings=warnings,
+        not_applicable_keys=not_applicable_keys,
     )
     if path_evidence is None:
         return None
@@ -1267,6 +1388,8 @@ def _resolve_factor_value(
     lineage: FinancialObservationLineage,
     record_key: str,
     errors: list[MVPBatchIssue],
+    warnings: list[MVPBatchIssue],
+    not_applicable_keys: list[tuple[str, str, str]],
 ) -> tuple[float, dict[str, Any]] | None:
     if path_type == PathType.UPSTREAM_COMPUTED.value:
         try:
@@ -1384,10 +1507,28 @@ def _resolve_factor_value(
             factor_id, formula_inputs, references
         )
     except (TypeError, ValueError) as exc:
+        if str(exc) == FormulaCalculationStatus.NOT_APPLICABLE.value:
+            definition = formula_definition_for(factor_id)
+            warnings.append(
+                _issue(
+                    MVPBatchErrorCode.FORMULA_NOT_APPLICABLE,
+                    definition.not_applicable_reason
+                    or "formula is not applicable to this sector",
+                    "sector_type",
+                    record_key,
+                )
+            )
+            not_applicable_keys.append(
+                (
+                    _date_iso(record.get("evaluation_date")),
+                    _required_text(record.get("code"), "code"),
+                    factor_id,
+                )
+            )
+            return None
         status_to_code = {
             FormulaCalculationStatus.SECTOR_CLASSIFICATION_MISSING.value: MVPBatchErrorCode.SECTOR_CLASSIFICATION_MISSING,
             FormulaCalculationStatus.SECTOR_FORMULA_MISMATCH.value: MVPBatchErrorCode.SECTOR_FORMULA_MISMATCH,
-            FormulaCalculationStatus.NOT_APPLICABLE.value: MVPBatchErrorCode.FORMULA_NOT_APPLICABLE,
             FormulaCalculationStatus.INVALID_DENOMINATOR.value: MVPBatchErrorCode.FORMULA_INPUT_REQUIRES_FIN_R2_PREP,
             FormulaCalculationStatus.NONFINITE_INPUT.value: MVPBatchErrorCode.FORMULA_INPUT_REQUIRES_FIN_R2_PREP,
         }
@@ -1583,6 +1724,7 @@ def _build_batches(
     *,
     observation_reference: MVPBatchObservationReference,
     configuration: MVPBatchConfig,
+    exposure_result: FinancialExposureAdapterResult | None = None,
 ) -> tuple[
     tuple[FinancialBatch, ...],
     tuple[tuple[str, str], ...],
@@ -1648,6 +1790,36 @@ def _build_batches(
                     "public_row_count": len(public_rows),
                     "future_labels_consumed": False,
                     "synthetic_test_only": True,
+                    "exposure_contract_version": (
+                        exposure_result.audit.contract_version
+                        if exposure_result is not None
+                        else None
+                    ),
+                    "exposure_source": (
+                        exposure_result.audit.source
+                        if exposure_result is not None
+                        else None
+                    ),
+                    "exposure_data_version": (
+                        exposure_result.audit.data_version
+                        if exposure_result is not None
+                        else None
+                    ),
+                    "industry_mapping_version": (
+                        exposure_result.audit.industry_mapping_version
+                        if exposure_result is not None
+                        else None
+                    ),
+                    "exposure_snapshot_hash": (
+                        exposure_result.audit.snapshot_hash
+                        if exposure_result is not None
+                        else None
+                    ),
+                    "exposure_adapter_hash": (
+                        exposure_result.audit.content_hash
+                        if exposure_result is not None
+                        else None
+                    ),
                 },
             )
         except EvaluationInputContractError as exc:
@@ -1674,6 +1846,8 @@ def _build_audit(
     batch_fingerprints: tuple[tuple[str, str], ...],
     configuration: MVPBatchConfig,
     ready: bool,
+    not_applicable_keys: tuple[tuple[str, str, str], ...] = (),
+    exposure_result: FinancialExposureAdapterResult | None = None,
 ) -> FinancialBatchAudit:
     status = (
         MVPBatchGateStatus.READY.value
@@ -1688,18 +1862,46 @@ def _build_audit(
     timing_references = tuple(
         sorted({f"{item.factor_id}:{item.effective_date}" for item in observations})
     )
-    provenance_references = tuple(
-        sorted(
-            {
-                f"{item.factor_id}:{item.financial_lineage_reference}"
-                for item in observations
-            }
+    provenance_values = {
+        f"{item.factor_id}:{item.financial_lineage_reference}"
+        for item in observations
+    }
+    if exposure_result is not None:
+        provenance_values.add(
+            f"{exposure_result.audit.contract_version}:"
+            f"{exposure_result.audit.data_version}:"
+            f"{exposure_result.audit.industry_mapping_version}:"
+            f"{exposure_result.audit.snapshot_hash}:"
+            f"{exposure_result.audit.content_hash}"
         )
-    )
+    provenance_references = tuple(sorted(provenance_values))
     sample_references = tuple(
         sorted({f"{item.factor_id}:{item.sample_reference}" for item in observations})
     )
-    accepted_count = len(observations) if status == "ready" else 0
+    successful_count = len(observations)
+    not_applicable_count = len(set(not_applicable_keys))
+    missing_codes = {
+        MVPBatchErrorCode.FINANCIAL_BATCH_REQUIRED_FIELD_MISSING.value,
+        MVPBatchErrorCode.LINEAGE_REFERENCE_MISSING.value,
+        MVPBatchErrorCode.SAMPLE_MASK_REFERENCE_MISSING.value,
+        MVPBatchErrorCode.PATH_A_UPSTREAM_PROOF_MISSING.value,
+        MVPBatchErrorCode.PATH_B_FORMULA_REFERENCE_MISSING.value,
+        MVPBatchErrorCode.FORMULA_INPUT_REFERENCE_MISSING.value,
+    }
+    missing_keys = {
+        item.record_key
+        for item in errors
+        if item.record_key is not None and item.code in missing_codes
+    }
+    failed_keys = {
+        item.record_key
+        for item in errors
+        if item.record_key is not None and item.record_key not in missing_keys
+    }
+    accepted_count = (
+        successful_count + not_applicable_count if status == "ready" else 0
+    )
+    rejected_count = len(missing_keys | failed_keys)
     fields = {
         "schema_version": MVP_AUDIT_SCHEMA_VERSION,
         "supported_factor_ids": SUPPORTED_FACTOR_IDS,
@@ -1711,7 +1913,11 @@ def _build_audit(
         ),
         "total_input_count": total_input_count,
         "accepted_count": accepted_count,
-        "rejected_count": total_input_count - accepted_count,
+        "rejected_count": rejected_count,
+        "successful_count": successful_count,
+        "not_applicable_count": not_applicable_count,
+        "missing_count": len(missing_keys),
+        "failure_count": len(failed_keys),
         "conflict_count": sum(item.code in conflict_codes for item in errors),
         "timing_references": timing_references,
         "provenance_references": provenance_references,
@@ -1734,7 +1940,11 @@ def _build_audit(
         path_b_count=fields["path_b_count"],
         total_input_count=total_input_count,
         accepted_count=accepted_count,
-        rejected_count=total_input_count - accepted_count,
+        rejected_count=rejected_count,
+        successful_count=successful_count,
+        not_applicable_count=not_applicable_count,
+        missing_count=len(missing_keys),
+        failure_count=len(failed_keys),
         conflict_count=fields["conflict_count"],
         timing_references=timing_references,
         provenance_references=provenance_references,
@@ -1752,7 +1962,11 @@ def _blocked_empty(
     *,
     configuration: MVPBatchConfig | None = None,
 ) -> MVPFinancialBatchResult:
-    config = configuration or MVPBatchConfig()
+    config = configuration or MVPBatchConfig(
+        universe="INVALID_CONFIGURATION",
+        universe_version="invalid",
+        universe_filter="none",
+    )
     audit = _build_audit(
         observations=[],
         total_input_count=0,

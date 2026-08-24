@@ -10,8 +10,11 @@ from backend.amr.financial_evidence_contracts import (
     FinancialEvidenceType,
     FinancialP2EvidenceGateSummary,
     FinancialP2ResultReference,
+    deserialize_financial_evidence_gate_execution,
+    execute_financial_evidence_gate,
     financial_evidence_content_hash,
     serialize_financial_evidence,
+    serialize_financial_evidence_gate_execution,
 )
 from backend.amr.financial_mvp_batch import (
     FORMULA_REGISTRY,
@@ -185,3 +188,42 @@ def test_gate_summary_contains_references_not_track_metrics():
         "audit_ref",
     }
     assert "ic" not in json.dumps(payload).lower()
+
+
+def test_execution_gate_binds_real_track_results_and_round_trips():
+    m_result, f_result, r_result = _track_results()
+    execution = execute_financial_evidence_gate(
+        m_result=m_result,
+        f_result=f_result,
+        r_result=r_result,
+    )
+    assert execution.gate_status == "ready"
+    assert execution.admission_allowed is True
+    assert execution.archive_allowed is True
+    assert tuple(item.evidence_type for item in execution.summary.references) == (
+        "M",
+        "F",
+        "R",
+    )
+    restored = deserialize_financial_evidence_gate_execution(
+        serialize_financial_evidence_gate_execution(execution)
+    )
+    assert restored == execution
+
+
+def test_failed_track_blocks_admission_and_archive_with_stage_reason():
+    m_result, f_result, r_result = _track_results()
+    f_result = FinancialP2FEvidenceResult(
+        (), _Stub({"gate_status": "blocked", "errors": [{"code": "F_FAILED"}]})
+    )
+    execution = execute_financial_evidence_gate(
+        m_result=m_result,
+        f_result=f_result,
+        r_result=r_result,
+    )
+    assert execution.gate_status == "blocked"
+    assert execution.admission_allowed is False
+    assert execution.archive_allowed is False
+    f_log = next(item for item in execution.stage_logs if item.evidence_type == "F")
+    assert f_log.execution_stage == "F_FORECAST"
+    assert "F_FAILED" in f_log.reason

@@ -7,7 +7,9 @@ import sys
 import types
 from dataclasses import FrozenInstanceError, replace
 from pathlib import Path
+from typing import ClassVar
 
+import pandas as pd
 import pytest
 
 if "backend.amr" not in sys.modules:
@@ -82,6 +84,40 @@ def _codes(result):
     return {item.code for item in result.financial_batch_audit.errors}
 
 
+def _warning_codes(result):
+    return {item.code for item in result.financial_batch_audit.warnings}
+
+
+class _ExposureBatchStub:
+    schema_version = "ExposureBatch-v1"
+    source = "platform-exposure-service"
+    version = "synthetic-exposure-v1"
+    provenance: ClassVar[dict[str, str]] = {
+        "source": source,
+        "data_version": version,
+        "industry_mapping_version": "synthetic-sector-map-v1",
+        "snapshot_hash": "b" * 64,
+    }
+
+    def __init__(self, *, sector_type="NON_FINANCIAL", market_cap=200.0):
+        self._frame = pd.DataFrame(
+            [
+                {
+                    "security_id": CODE,
+                    "start_date": "2020-01-01",
+                    "cancel_date": "2025-01-01",
+                    "industry_code": sector_type,
+                    "industry_type": sector_type,
+                    "total_market_cap": market_cap,
+                    "market_cap_date": EVALUATION_DATE,
+                }
+            ]
+        )
+
+    def get_frame(self):
+        return self._frame.copy(deep=True)
+
+
 class TestFrozenContractAndRegistry:
     def test_contract_versions_keys_and_factor_ids(self):
         assert MVP_BATCH_SCHEMA_VERSION == "FinancialMVPBatch-v1.0"
@@ -120,11 +156,24 @@ class TestFrozenContractAndRegistry:
             formula_definition_for("GPM")
 
     def test_configuration_is_frozen_and_version_guarded(self):
-        config = MVPBatchConfig()
+        config = MVPBatchConfig(
+            universe="ALL_A_SHARE",
+            universe_version="test-all-a-v1",
+            universe_filter="listed_and_pit_eligible",
+        )
         with pytest.raises(FrozenInstanceError):
             config.batch_version = "changed"
         with pytest.raises(ValueError):
-            MVPBatchConfig(formula_registry_version="unknown")
+            MVPBatchConfig(
+                universe="ALL_A_SHARE",
+                universe_version="test-all-a-v1",
+                universe_filter="listed_and_pit_eligible",
+                formula_registry_version="unknown",
+            )
+
+    def test_universe_scope_is_explicit(self):
+        with pytest.raises(TypeError):
+            MVPBatchConfig()
 
 
 class TestPathA:
@@ -235,7 +284,54 @@ class TestPathB:
         ocf_np = next(item for item in records if item["factor_id"] == "OCF_NP")
         ocf_np["sector_type"] = "BANK"
         result = _build("B", records=records)
-        assert "FORMULA_NOT_APPLICABLE" in _codes(result)
+        assert result.financial_batch_audit.gate_status == "ready"
+        assert "FORMULA_NOT_APPLICABLE" in _warning_codes(result)
+        assert "FORMULA_NOT_APPLICABLE" not in _codes(result)
+        assert result.financial_batch_audit.successful_count == 2
+        assert result.financial_batch_audit.not_applicable_count == 1
+        assert result.financial_batch_audit.missing_count == 0
+        assert result.financial_batch_audit.failure_count == 0
+        assert result.get_batch("OCF_NP").get_frame().empty
+        assert not any(
+            item.factor_id == "OCF_NP"
+            for item in result.observation_reference.records
+        )
+
+    def test_public_exposure_batch_routes_mixed_formula_applicability(self):
+        records, lineages, samples, config, labels = _inputs("B")
+        for record in records:
+            record.pop("sector_type", None)
+        result = build_mvp_financial_batches(
+            records,
+            lineage_references=lineages,
+            sample_references=samples,
+            configuration=config,
+            future_labels=labels,
+            exposure_batch=_ExposureBatchStub(sector_type="BANK"),
+        )
+        assert result.financial_batch_audit.gate_status == "ready"
+        assert result.financial_batch_audit.successful_count == 2
+        assert result.financial_batch_audit.not_applicable_count == 1
+        assert "FORMULA_NOT_APPLICABLE" in _warning_codes(result)
+        for batch in result.batches:
+            provenance = batch.provenance
+            assert provenance["exposure_contract_version"] == "ExposureBatch-v1"
+            assert provenance["exposure_data_version"] == "synthetic-exposure-v1"
+            assert provenance["industry_mapping_version"] == "synthetic-sector-map-v1"
+            assert provenance["exposure_snapshot_hash"] == "b" * 64
+
+    def test_public_exposure_market_cap_mismatch_blocks(self):
+        records, lineages, samples, config, labels = _inputs("B")
+        result = build_mvp_financial_batches(
+            records,
+            lineage_references=lineages,
+            sample_references=samples,
+            configuration=config,
+            future_labels=labels,
+            exposure_batch=_ExposureBatchStub(market_cap=201.0),
+        )
+        assert result.financial_batch_audit.gate_status == "blocked"
+        assert "EXPOSURE_VALUE_MISMATCH" in _codes(result)
 
     def test_formula_version_and_inputs_are_retraceable(self):
         result = _build("B")
