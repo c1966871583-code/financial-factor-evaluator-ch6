@@ -22,6 +22,7 @@ bp-valuation = [
 
 [dependency-groups]
 dev = [
+    "pydantic>=2.10,<3",
     "pytest>=8.3,<10",
     "ruff>=0.9,<1",
 ]

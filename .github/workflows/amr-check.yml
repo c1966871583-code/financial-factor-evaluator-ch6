@@ -35,6 +35,11 @@ jobs:
       - name: Sync locked dependencies
         run: uv sync --frozen
 
+      - name: Verify locked CI toolchain contract
+        run: >-
+          uv run --frozen python -m pytest
+          tests/test_amr_ci_toolchain.py -q -p no:cacheprovider
+
       - name: Run full lint on changed Python files
         env:
           PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}

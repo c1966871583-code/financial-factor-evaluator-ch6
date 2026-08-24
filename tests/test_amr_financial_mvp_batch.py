@@ -10,17 +10,16 @@ from pathlib import Path
 
 import pytest
 
-
 if "backend.amr" not in sys.modules:
     package = types.ModuleType("backend.amr")
     package.__path__ = [str(Path(__file__).resolve().parents[1] / "backend" / "amr")]
     sys.modules["backend.amr"] = package
 
-from backend.amr.evaluation_input_contract import FinancialBatch  # noqa: E402
-from backend.amr.financial_lineage import (  # noqa: E402
+from backend.amr.evaluation_input_contract import FinancialBatch
+from backend.amr.financial_lineage import (
     recompute_lineage_content_hash,
 )
-from backend.amr.financial_mvp_batch import (  # noqa: E402
+from backend.amr.financial_mvp_batch import (
     FORMULA_REGISTRY,
     FORMULA_REGISTRY_VERSION,
     HASH_CONTRACT_VERSION,
@@ -30,7 +29,6 @@ from backend.amr.financial_mvp_batch import (  # noqa: E402
     PUBLIC_BATCH_SORT_FIELDS,
     SUPPORTED_FACTOR_IDS,
     MVPBatchConfig,
-    MVPBatchErrorCode,
     MVPBatchLookupError,
     build_mvp_financial_batches,
     calculate_registered_mvp_formula,
@@ -38,11 +36,11 @@ from backend.amr.financial_mvp_batch import (  # noqa: E402
     formula_definition_for,
     recompute_observation_content_hash,
 )
-from backend.amr.financial_sample import (  # noqa: E402
+from backend.amr.financial_sample import (
     compute_sample_fingerprint,
     recompute_sample_content_hash,
 )
-from tests.fixtures.synthetic_financial_mvp_batch_cases import (  # noqa: E402
+from tests.fixtures.synthetic_financial_mvp_batch_cases import (
     CODE,
     EVALUATION_DATE,
     EXPECTED_FACTOR_VALUES,

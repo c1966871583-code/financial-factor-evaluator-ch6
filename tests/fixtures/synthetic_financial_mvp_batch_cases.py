@@ -5,8 +5,8 @@ from copy import deepcopy
 
 from backend.amr.financial_lineage import build_financial_provenance
 from backend.amr.financial_mvp_batch import (
-    MVPBatchConfig,
     SUPPORTED_FACTOR_IDS,
+    MVPBatchConfig,
     formula_definition_for,
 )
 from backend.amr.financial_sample import (
@@ -17,7 +17,6 @@ from backend.amr.financial_source_adapter import (
     adapt_financial_source_records,
 )
 from backend.amr.financial_timing import FinancialTimingPolicy
-
 
 CODE = "SYNMVP001"
 REPORT_PERIOD = "2023-09-30"

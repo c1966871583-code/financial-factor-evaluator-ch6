@@ -12,16 +12,16 @@ import hashlib
 import json
 import math
 import statistics
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, replace
 from datetime import date
 from enum import Enum
-from typing import Any, Iterable, Mapping
+from typing import Any
 
 from backend.amr.financial_mvp_batch import (
     SUPPORTED_FACTOR_IDS,
     formula_definition_for,
 )
-
 
 PREPROCESSING_SCHEMA_VERSION = "FinancialPreprocessing-v1.0"
 PREPROCESSING_AUDIT_SCHEMA_VERSION = "FinancialPreprocessingAudit-v1.0"

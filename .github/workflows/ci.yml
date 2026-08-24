@@ -33,6 +33,11 @@ jobs:
       - name: Sync locked dependencies
         run: uv sync --frozen
 
+      - name: Verify locked CI toolchain contract
+        run: >-
+          uv run --frozen python -m pytest
+          tests/test_amr_ci_toolchain.py -q -p no:cacheprovider
+
       - name: Run AMR correctness lint
         run: >-
           uv run --frozen ruff check backend/amr tests

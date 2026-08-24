@@ -12,10 +12,11 @@ import copy
 import hashlib
 import json
 import math
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from datetime import date, datetime
 from enum import Enum
-from typing import Any, Iterable, Mapping
+from typing import Any
 
 import pandas as pd
 
@@ -34,12 +35,10 @@ from .financial_lineage import (
     recompute_lineage_content_hash,
 )
 from .financial_sample import (
-    FactorSampleRecord,
     SampleFormationReference,
     compute_sample_fingerprint,
     recompute_sample_content_hash,
 )
-
 
 MVP_BATCH_SCHEMA_VERSION = "FinancialMVPBatch-v1.0"
 MVP_AUDIT_SCHEMA_VERSION = "FinancialBatchAudit-v1.0"
@@ -755,7 +754,7 @@ def build_mvp_financial_batches(
                 }
             ),
         )
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 - untrusted input boundary
         return _blocked_empty(
             _issue(
                 MVPBatchErrorCode.INVALID_MVP_BATCH_INPUT,
@@ -824,7 +823,7 @@ def build_mvp_financial_batches(
                     "upstream inputs changed during Batch integration",
                 )
             )
-    except Exception:
+    except Exception:  # noqa: BLE001 - mutation guard must fail closed
         errors.append(
             _issue(
                 MVPBatchErrorCode.INPUT_MUTATION_DETECTED,

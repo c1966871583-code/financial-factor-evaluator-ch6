@@ -11,10 +11,11 @@ import copy
 import hashlib
 import json
 import math
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from datetime import date, datetime
 from enum import Enum
-from typing import Any, Iterable, Mapping
+from typing import Any
 
 import pandas as pd
 
