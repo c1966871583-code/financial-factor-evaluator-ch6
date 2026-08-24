@@ -1,12 +1,18 @@
 """INFO-GAIN-03C: formal R-track combo/member comparison availability."""
 from __future__ import annotations
-import hashlib,json,math
+
+import hashlib
+import json
+import math
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any,Mapping
+
 import numpy as np
+
 from backend.amr.financial_p3_combinations import FinancialP3CombinationsResult
 from backend.amr.financial_p3_info_gain_r_member_baselines import RMemberBaselineResult
-COMBO_FP="7c8686b44f3842f159b3fbbc45aa9908f3bf81acd5ebec381f8ac4f5c1933fa2";MEMBER_FP="91ead71b3767a31ad0fb23cdff91c9c6372a8d77bbd68d552b23ebc4cf7a2e2e";CONTRACT_HASH="e6d51313ae0fb326d4b239dbb3aefe542c8d5d623237b05e7678959436766747";ORDER=("VQ","QG","CASHQ");METRICS=("pr_auc","roc_auc","brier_score","top_k_hit_rate","expected_calibration_error")
+
+COMBO_FP="7188b1deb543e4357a6df51cafd91d1e3948ebd1440b9130e87427580a37df30";MEMBER_FP="91ead71b3767a31ad0fb23cdff91c9c6372a8d77bbd68d552b23ebc4cf7a2e2e";CONTRACT_HASH="6a8b42f96407d0ed9659fc6f18a76d2c0e2a6a870eed25b0fc18decba9c9f844";ORDER=("VQ","QG","CASHQ");METRICS=("pr_auc","roc_auc","brier_score","top_k_hit_rate","expected_calibration_error")
 @dataclass(frozen=True)
 class RInfoGainComparisonConfig:
  run_id:str;accepted_combination_fingerprint:str=COMBO_FP;accepted_member_fingerprint:str=MEMBER_FP;accepted_contract_hash:str=CONTRACT_HASH;synthetic_test_only:bool=True

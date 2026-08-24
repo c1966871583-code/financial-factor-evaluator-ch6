@@ -1,15 +1,21 @@
 """INFO-GAIN-03A: M-track combo-to-each-member comparisons on frozen output."""
 from __future__ import annotations
-import hashlib,json,math
+
+import hashlib
+import json
+import math
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any,Mapping
+from typing import Any
+
 import numpy as np
+
 from backend.amr.financial_p3_combinations import FinancialP3CombinationsResult
 from backend.amr.financial_p3_info_gain_m_member_baselines import MMemberBaselineResult
 
-COMBO_FP="7c8686b44f3842f159b3fbbc45aa9908f3bf81acd5ebec381f8ac4f5c1933fa2"
-MEMBER_FP="2a92a8b8896c4dc153853e0bf23c3c1dd950747d7552dd2ca5373480fe541970"
-CONTRACT_HASH="e6d51313ae0fb326d4b239dbb3aefe542c8d5d623237b05e7678959436766747"
+COMBO_FP="7188b1deb543e4357a6df51cafd91d1e3948ebd1440b9130e87427580a37df30"
+MEMBER_FP="6a60ae604713997965de4322a2c3b0b5e83619ae92b3cb2ca8c0b3eade8baa2f"
+CONTRACT_HASH="6a8b42f96407d0ed9659fc6f18a76d2c0e2a6a870eed25b0fc18decba9c9f844"
 ORDER=("VQ","QG","CASHQ")
 METRICS=("rank_ic_mean","pearson_ic_mean","rank_ic_ir","pearson_ic_ir","rank_ic_hac_t_stat","pearson_ic_hac_t_stat","rank_ic_positive_ratio","pearson_ic_positive_ratio","quantile_returns","long_short_mean","monotonicity_spearman","fm_mean_r2","rank_ic_rolling_stability")
 COMMON={"rank_ic_mean":("mean_rank_ic","rank_ic_mean","higher"),"rank_ic_ir":("icir","rank_ic_ir","higher"),"rank_ic_positive_ratio":("positive_ic_ratio","rank_ic_positive_ratio","higher"),"quantile_returns":("group_returns","quantile_returns","detail_only"),"long_short_mean":("long_short_spread","long_short_mean","higher"),"monotonicity_spearman":("monotonicity","monotonicity_spearman","higher")}
@@ -67,7 +73,7 @@ def compare_financial_p3_info_gain_m(combinations:FinancialP3CombinationsResult,
 
 def _row(combo,member,metric,cm,mr):
  if metric not in COMMON:return MMetricIncrement(combo,member,metric,None,None,None,None,"not_evaluable","not_evaluable","METRIC_NOT_AVAILABLE_ON_BOTH_SIDES")
- ca,ma,direction=COMMON[metric]; cv=getattr(cm,ca); mv=getattr(mr,ma)
+ ca,ma,_direction=COMMON[metric]; cv=getattr(cm,ca); mv=getattr(mr,ma)
  if metric=="quantile_returns": return MMetricIncrement(combo,member,metric,{str(i+1):v for i,v in enumerate(cv)},dict(mv),None,None,"completed","detail_only",None)
  if cv is None or mv is None:return MMetricIncrement(combo,member,metric,cv,mv,None,None,"not_evaluable","not_evaluable","NONFINITE_OR_MISSING")
  inc=float(cv)-float(mv); rel=None if math.isclose(float(mv),0,abs_tol=1e-12) else inc/abs(float(mv))

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import numpy as np
 import pandas as pd
@@ -28,7 +28,7 @@ def test_v2_floats_have_fixed_precision_and_special_value_rules():
 
 
 def test_v2_dates_and_mapping_order_are_canonical():
-    utc = datetime(2024, 1, 1, 0, 0, tzinfo=timezone.utc)
+    utc = datetime(2024, 1, 1, 0, 0, tzinfo=UTC)
     assert canonicalize_financial_fingerprint(utc) == "2024-01-01T00:00:00.000000Z"
     first = canonicalize_financial_fingerprint({"b": 2, "a": 1})
     second = canonicalize_financial_fingerprint({"a": 1, "b": 2})

@@ -43,7 +43,7 @@ ACCEPTED_INFO_GAIN_02A_OUTPUT_FINGERPRINT = (
     "1599c601f11da9d67adf7d538f80fe75488ac2481c0794678d6660589ea1c48e"
 )
 ACCEPTED_INFO_GAIN_CONTRACT_HASH = (
-    "e6d51313ae0fb326d4b239dbb3aefe542c8d5d623237b05e7678959436766747"
+    "6a8b42f96407d0ed9659fc6f18a76d2c0e2a6a870eed25b0fc18decba9c9f844"
 )
 ACCEPTED_F_EVALUATOR_SOURCE_SHA256 = (
     "f44dee7df677a8e4921f14c953d2ba25df1bbdb8d782db7528ddf8359c0d443b"
@@ -360,7 +360,10 @@ def _build_result(prepared, bundles, errors, evaluator_hash):
 
 def _evaluator_source_sha256() -> str:
     source = inspect.getsourcefile(evaluate_financial_p2_f_evidence)
-    return hashlib.sha256(Path(source).read_bytes()).hexdigest() if source else "unavailable"
+    if source is None:
+        return "unavailable"
+    normalized = Path(source).read_bytes().replace(b"\r\n", b"\n")
+    return hashlib.sha256(normalized).hexdigest()
 
 
 def _issue(code, message, combo_id=None, member_factor_id=None):

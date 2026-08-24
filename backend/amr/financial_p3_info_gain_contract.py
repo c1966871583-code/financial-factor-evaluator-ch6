@@ -11,9 +11,11 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
+from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Sequence
+from typing import Any
 
 from backend.amr.evaluation_core import EvaluationStatus
 from backend.amr.financial_mvp_output import EvidenceAssessment
@@ -27,7 +29,6 @@ from backend.amr.financial_p3_common_sample import (
     CommonSampleEvaluationStatus,
 )
 
-
 INFO_GAIN_CONTRACT_SCHEMA_VERSION = "FinancialP3InfoGainContract-v1.0"
 INFO_GAIN_CONTRACT_VERSION = "FIN-P3-INFO-GAIN-CONTRACT-v1.0"
 INFO_GAIN_POLICY_VERSION = "FIN-P3-INFO-GAIN-POLICY-v1.0"
@@ -35,7 +36,7 @@ INFO_GAIN_HASH_CONTRACT_VERSION = "FIN-P3-INFO-GAIN-HASH-v1.0"
 INFO_GAIN_PREDECESSOR_TASK = "FIN-P3-COMBOS"
 INFO_GAIN_PREDECESSOR_STATUS = "ACCEPTED"
 INFO_GAIN_PREDECESSOR_OUTPUT_FINGERPRINT = (
-    "7c8686b44f3842f159b3fbbc45aa9908f3bf81acd5ebec381f8ac4f5c1933fa2"
+    "7188b1deb543e4357a6df51cafd91d1e3948ebd1440b9130e87427580a37df30"
 )
 INFO_GAIN_RESEARCH_ASSESSMENT = "exploratory"
 INFO_GAIN_ADMISSION_STATUS = "not_assessed"
@@ -1077,7 +1078,7 @@ def _canonical(value: Any) -> Any:
     if value is None or isinstance(value, (str, bool, int)):
         return value
     if isinstance(value, float):
-        if value != value or value in (float("inf"), float("-inf")):
+        if not math.isfinite(value):
             raise ValueError("non-finite values are forbidden")
         return float(value)
     raise TypeError(f"unsupported canonical type: {type(value).__name__}")

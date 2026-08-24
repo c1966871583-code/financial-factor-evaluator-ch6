@@ -11,8 +11,7 @@ from __future__ import annotations
 import hashlib
 import inspect
 import json
-import math
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -24,6 +23,7 @@ from backend.amr.evaluation_core import (
     EvaluationStatus,
     SecurityLevelEvaluationResult,
 )
+from backend.amr.financial_fingerprint import canonicalize_financial_fingerprint
 from backend.amr.financial_mvp_m_evaluation import (
     FinancialMVPMEvaluationConfig,
     _evaluate_one_factor,
@@ -41,7 +41,7 @@ INFO_GAIN_02B_AUDIT_SCHEMA_VERSION = (
     "FinancialP3InfoGainMMemberBaselineAudit-v1.0"
 )
 INFO_GAIN_02B_POLICY_VERSION = "FIN-P3-INFO-GAIN-02B-POLICY-v1.0"
-INFO_GAIN_02B_HASH_CONTRACT_VERSION = "FIN-P3-INFO-GAIN-02B-HASH-v1.0"
+INFO_GAIN_02B_HASH_CONTRACT_VERSION = "FIN-P3-INFO-GAIN-02B-HASH-v2.0"
 INFO_GAIN_02B_PRODUCTION_STATUS = "not production ready"
 INFO_GAIN_02B_CONCLUSION_BOUNDARY = (
     "M-track common-sample member baselines only. No F/R evaluation, "
@@ -53,7 +53,7 @@ ACCEPTED_INFO_GAIN_02A_OUTPUT_FINGERPRINT = (
     "1599c601f11da9d67adf7d538f80fe75488ac2481c0794678d6660589ea1c48e"
 )
 ACCEPTED_INFO_GAIN_CONTRACT_HASH = (
-    "e6d51313ae0fb326d4b239dbb3aefe542c8d5d623237b05e7678959436766747"
+    "6a8b42f96407d0ed9659fc6f18a76d2c0e2a6a870eed25b0fc18decba9c9f844"
 )
 ACCEPTED_M_EVALUATOR_SOURCE_SHA256 = (
     "94e5c4a7808273fd4d6f5158b5cabc9dc07cdd0bd94dcbca91802a4d0bd74cea"
@@ -545,7 +545,8 @@ def _evaluator_source_sha256() -> str:
     source = inspect.getsourcefile(_evaluate_one_factor)
     if source is None:
         return "unavailable"
-    return hashlib.sha256(Path(source).read_bytes()).hexdigest()
+    normalized = Path(source).read_bytes().replace(b"\r\n", b"\n")
+    return hashlib.sha256(normalized).hexdigest()
 
 
 def _issue(code, message, combo_id=None, member_factor_id=None):
@@ -558,22 +559,16 @@ def _required_text(value, field_name):
 
 
 def _canonical(value):
-    if isinstance(value, Mapping):
-        return {str(key): _canonical(item) for key, item in sorted(value.items(), key=lambda pair: str(pair[0]))}
-    if isinstance(value, (list, tuple)):
-        return [_canonical(item) for item in value]
-    if value is None or isinstance(value, (str, bool, int)):
-        return value
-    if isinstance(value, (float, np.floating)):
-        return float(value) if math.isfinite(float(value)) else None
-    if isinstance(value, np.integer):
-        return int(value)
-    raise TypeError(f"unsupported canonical type: {type(value).__name__}")
+    return canonicalize_financial_fingerprint(value)
 
 
 def _hash(domain, value):
     payload = json.dumps(
-        {"domain": domain, "value": _canonical(value)},
+        {
+            "domain": domain,
+            "hash_contract_version": INFO_GAIN_02B_HASH_CONTRACT_VERSION,
+            "value": _canonical(value),
+        },
         ensure_ascii=False,
         sort_keys=True,
         separators=(",", ":"),

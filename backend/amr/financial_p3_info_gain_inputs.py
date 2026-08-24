@@ -659,7 +659,7 @@ def _validate_observation_values(frame, errors, combo_id):
         converted = pd.to_numeric(frame[column], errors="coerce")
         if not np.isfinite(converted).all():
             errors.append(_issue("NONFINITE_REQUIRED_VALUE", "accepted common rows require finite values", combo_id, field_name=column))
-        frame[column] = converted.astype(float)
+        frame[column] = converted.astype(float).round(12)
     evaluation = pd.to_datetime(frame["evaluation_date"], errors="coerce", format="mixed")
     factor_effective = pd.to_datetime(frame["factor_effective_date"], errors="coerce", format="mixed")
     control_effective = pd.to_datetime(frame["control_effective_date"], errors="coerce", format="mixed")

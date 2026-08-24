@@ -48,8 +48,8 @@ def test_golden_gate_and_fingerprints(result):
     assert result.audit.gate_status == "ready"
     assert not result.audit.errors
     assert result.audit.input_fingerprint == ACCEPTED_INFO_GAIN_02A_OUTPUT_FINGERPRINT
-    assert result.audit.output_fingerprint == "2a92a8b8896c4dc153853e0bf23c3c1dd950747d7552dd2ca5373480fe541970"
-    assert result.audit.content_hash == "c9ff83904fde598b8f0e6af86c213394e59dab980144c6aa4fd6a3d022b2b7a6"
+    assert result.audit.output_fingerprint == "6a60ae604713997965de4322a2c3b0b5e83619ae92b3cb2ca8c0b3eade8baa2f"
+    assert result.audit.content_hash == "80014488e67e5cb68221c4c363fde010e5d752af845553081cafb42778beee2c"
 
 
 def test_all_eleven_combo_member_runs_are_completed(result):
