@@ -1,8 +1,16 @@
 from __future__ import annotations
-import dataclasses,json
+
+import dataclasses
+import json
+
 import pytest
+
 from backend.amr.financial_p3_info_gain_m_comparisons import *
-from tests.fixtures.synthetic_financial_p3_info_gain_m_comparison_cases import make_inputs,make_configuration
+from tests.fixtures.synthetic_financial_p3_info_gain_m_comparison_cases import (
+ make_configuration,
+ make_inputs,
+)
+
 
 @pytest.fixture(scope="module")
 def inputs(): return make_inputs()
@@ -11,8 +19,8 @@ def result(inputs): return compare_financial_p3_info_gain_m(*inputs,configuratio
 def test_golden_pairwise_result(result):
  assert result.audit.gate_status=="ready";assert (result.audit.combo_count,result.audit.member_count,result.audit.comparison_count)==(3,11,143)
  assert (result.audit.completed_comparison_count,result.audit.not_evaluable_count)==(66,77)
- assert result.audit.output_fingerprint=="6a9f764b450431582b5e5955e04dcc0e05978e543648e65d980e40b188ab0c64"
- assert result.audit.content_hash=="571175f58ca1678d9c2081c9916d1c5563077ebfcf3450493bcb678140994161"
+ assert result.audit.output_fingerprint=="b4397b1c454deaa0239fd020f9c77d009fd801eb382f385b8929ac80542588f1"
+ assert result.audit.content_hash=="1211bfc2babedd0b9874a8ac33041581468203f89fb37b6911a49bc6ca7f0465"
 def test_only_common_metrics_have_increments(result):
  rows=[r for c in result.combinations for r in c.member_comparisons]
  for r in rows:

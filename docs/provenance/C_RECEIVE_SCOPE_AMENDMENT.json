@@ -1,0 +1,80 @@
+{
+  "record_type": "C_RECEIVE_SCOPE_AMENDMENT",
+  "record_version": "1.0",
+  "amendment_id": "FIN-HO-8-C-SCOPE-AMENDMENT-01",
+  "created_at_utc": "2026-08-14T07:09:29.6926675Z",
+  "decision_authority": "OPERATOR",
+  "status": "APPLIED",
+  "amends": {
+    "gate": "FIN_HO_8_C",
+    "task_id": "FIN-HO-8-C-RECEIVE-ACCEPTANCE-34",
+    "record": "C_RECEIVE_ACCEPTANCE_RECORD.json",
+    "record_sha256_before_scope_clarification": "3aa1df2f63dc53b8fd1287bbc5cbf9ec4bfe3c8408fb8499e0ab06f07afae9c6",
+    "record_sha256_after_scope_clarification": "b438b3f5b22aa5aa081550b8762de9c9af4cb2f395d5e055c96b16bd283af350"
+  },
+  "binding": {
+    "source_authoritative_run_id": "rqdata-authoritative-20260812T023240Z-16b9b5eba2",
+    "p05_package_id": "p05-financial-0e95e865a647bee1f9e61929",
+    "p05_rows_sha256": "674b952f0fd7608f282a2420d7e0453a55c4db9ebaf0a2a00be4518e4137c803",
+    "p05_package_sha256": "10e94d3c85fad343ea58b7b5868e236314a69ffb8db82195cead69c6460e081d"
+  },
+  "clarified_acceptance_scope": {
+    "scope_type": "QUARTERLY_FINANCIAL_TASK8_P05",
+    "accepted_factors": [
+      {
+        "factor_id": "ROE",
+        "accepted_semantic_name": "ROE_TTM_ENDING_EQUITY",
+        "definition": "TTM attributable parent-company net profit divided by report-period-end parent-company equity"
+      },
+      {
+        "factor_id": "OCF_NP",
+        "accepted_semantic_name": "OCF_NP",
+        "definition": "TTM net operating cash flow divided by TTM attributable parent-company net profit"
+      }
+    ],
+    "accepted_row_count": 180,
+    "task8_ready": true,
+    "task8_ready_applies_only_to_accepted_factors": true
+  },
+  "bp_scope": {
+    "real_data_validated": true,
+    "authoritative_snapshot_status": "FROZEN",
+    "authoritative_rows_preserved": 90,
+    "included_in_current_quarterly_p05": false,
+    "valuation_factor_handoff_contract_ready": false,
+    "task8_receive_accepted": false,
+    "required_next_work": "VALUATION_FACTOR_HANDOFF_CONTRACT_AND_TASK8_RECEIVE"
+  },
+  "amendment_semantics": {
+    "change_type": "SCOPE_AND_SEMANTIC_NAME_CLARIFICATION_ONLY",
+    "accepted_machine_factor_ids_changed": false,
+    "accepted_row_count_changed": false,
+    "factor_values_changed": false,
+    "factor_formulas_changed": false,
+    "policies_changed": false,
+    "lineage_changed": false,
+    "hash_chain_changed": false,
+    "p05_package_changed": false,
+    "authoritative_snapshot_changed": false,
+    "b_gate_status_changed": false,
+    "c_receive_status_changed": false,
+    "chapter6_complete_declared": false,
+    "production_ready_declared": false
+  },
+  "validation": {
+    "acceptance_record_json_valid": true,
+    "scope_constraint_validation": "PASS",
+    "c_receive_checks_passed": 19,
+    "c_receive_checks_failed": 0,
+    "formal_tests_passed": 204,
+    "formal_tests_skipped": 0,
+    "formal_tests_failed": 0,
+    "hash_drift_detected": false
+  },
+  "code_provenance": {
+    "pipeline_code_snapshot_commit": "c40193de9d2e04145226599c03fecff48037d007",
+    "provenance_record_commit": "b1cde9ed3a020757300a60f524e053904de1ffec",
+    "frozen_artifact_manifest_rewritten": false
+  },
+  "next_authorized_step": "CHAPTER_6_FINAL_ACCEPTANCE_REVIEW"
+}

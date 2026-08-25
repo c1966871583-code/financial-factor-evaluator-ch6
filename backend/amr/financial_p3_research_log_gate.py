@@ -1,11 +1,15 @@
 """FIN-P3-LOG-08: task-level completeness gate for assembled Research Log."""
 from __future__ import annotations
-import hashlib,json
+
+import hashlib
+import json
 from dataclasses import dataclass
 from typing import Any
+
 from backend.amr.financial_p3_research_log_assembly import ResearchLogAssemblyResult
 from backend.amr.financial_p3_research_log_serialization import FinancialP3ResearchLog
-ASSEMBLY_FP="66e0fca3dcb14187ebaaf7da17c31f5f72744cb22a05dab0840c2460a1e5e863"
+
+ASSEMBLY_FP="7bd53b30495a3f4372171cdbaafd2ce788c4f99011b9a69edb3e76019c763662"
 @dataclass(frozen=True)
 class ResearchLogGateResult:
  gate_status:str;configuration_entry_count:int;result_entry_count:int;failure_entry_count:int;lineage_entry_count:int;research_log_content_hash:str;output_fingerprint:str;content_hash:str

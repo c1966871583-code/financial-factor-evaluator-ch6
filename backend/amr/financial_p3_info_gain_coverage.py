@@ -1,12 +1,18 @@
 """INFO-GAIN-04: report frozen common-sample coverage cost without selection."""
 from __future__ import annotations
-import hashlib,json,math
+
+import hashlib
+import json
+import math
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any,Mapping
+
 import numpy as np
+
 from backend.amr.financial_p3_combinations import FinancialP3CombinationsResult
 from backend.amr.financial_p3_info_gain_inputs import InfoGainInputPreparationResult
-COMBO_FP="7c8686b44f3842f159b3fbbc45aa9908f3bf81acd5ebec381f8ac4f5c1933fa2";INPUT_FP="b9e395416742f79edfd992d176582432ce644251f46cbfadb7d5a9ab661a43ef";ORDER=("VQ","QG","CASHQ")
+
+COMBO_FP="514e5296ac1ca3afc4dc9d43882579cd43d4830a4234e75b9e95685119e7838a";INPUT_FP="1599c601f11da9d67adf7d538f80fe75488ac2481c0794678d6660589ea1c48e";ORDER=("VQ","QG","CASHQ")
 @dataclass(frozen=True)
 class CoverageConfig:
  run_id:str;accepted_combination_fingerprint:str=COMBO_FP;accepted_input_fingerprint:str=INPUT_FP;synthetic_test_only:bool=True
@@ -39,7 +45,7 @@ def report_financial_p3_info_gain_coverage(combos:FinancialP3CombinationsResult,
  if not isinstance(inputs,InfoGainInputPreparationResult):raise TypeError("inputs must be InfoGainInputPreparationResult")
  if not isinstance(configuration,CoverageConfig):raise TypeError("configuration must be CoverageConfig")
  errors=[]
- if combos.combinations_audit.gate_status!="ready" or combos.combinations_audit.output_fingerprint!=configuration.accepted_combination_fingerprint:errors.append(CoverageIssue("COMBOS_NOT_ACCEPTED","accepted COMBOS output drifted"))
+ if combos.combinations_audit.gate_status!="ready" or combos.combinations_audit.output_fingerprint!=configuration.accepted_combination_fingerprint:errors.append(CoverageIssue("COMBOS_NOT_ACCEPTED",f"accepted COMBOS output drifted: expected={configuration.accepted_combination_fingerprint}, actual={combos.combinations_audit.output_fingerprint}"))
  if inputs.audit.gate_status!="ready" or inputs.audit.output_fingerprint!=configuration.accepted_input_fingerprint:errors.append(CoverageIssue("INPUTS_NOT_ACCEPTED","accepted 02A output drifted"))
  if tuple(x.definition.combination_id for x in combos.experiments)!=ORDER or tuple(x.combo_id for x in inputs.packages)!=ORDER:errors.append(CoverageIssue("COMBO_ORDER_MISMATCH","VQ,QG,CASHQ required"))
  reports=[]

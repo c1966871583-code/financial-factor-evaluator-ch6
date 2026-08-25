@@ -1,0 +1,113 @@
+{
+  "task_id": "CHAPTER-6-FINAL-ACCEPTANCE-REVIEW",
+  "status": "CHAPTER_6_FINAL_ACCEPTANCE_ACCEPTED",
+  "acceptance_class": "SCOPED_RESEARCH_ACCEPTANCE_WITH_EXPLICIT_LIMITATIONS",
+  "decision_authority": "OPERATOR_AUTHORIZED_PIPELINE",
+  "accepted_at_utc": "2026-08-14T07:16:49.7273061Z",
+  "accepted_scope": {
+    "scope_type": "QUARTERLY_FINANCIAL_REAL_DATA_TASK8_PIPELINE",
+    "source_authoritative_run_id": "rqdata-authoritative-20260812T023240Z-16b9b5eba2",
+    "p05_package_id": "p05-financial-0e95e865a647bee1f9e61929",
+    "semantic_factors": [
+      "ROE_TTM_ENDING_EQUITY",
+      "OCF_NP"
+    ],
+    "machine_factor_ids": [
+      "ROE",
+      "OCF_NP"
+    ],
+    "rows": 180,
+    "securities": 30,
+    "evaluation_dates": 3,
+    "task8_ready": true
+  },
+  "acceptance_chain": {
+    "real_provider": "RQData",
+    "rqdatac_version": "3.5.2",
+    "authoritative_snapshot": "FROZEN_AND_VALIDATED",
+    "b3a": "QUALIFIED_FINANCIAL_HANDOFF_INPUTS_READY",
+    "p05": "FROZEN",
+    "b_gate": "ACCEPTED",
+    "c_receive": "ACCEPTED",
+    "scope_amendment": "APPLIED",
+    "code_provenance": "LOCKED_AND_RECORDED"
+  },
+  "final_validation": {
+    "status": "PASS",
+    "checks_passed": 15,
+    "checks_failed": 0,
+    "validation_artifact": "CHAPTER_6_FINAL_VALIDATION.json",
+    "validation_artifact_sha256": "0e84979861af98a20d44bc6db4cf58c763d1e79c5cd9250a1486062f44a7003f",
+    "hash_drift_detected": false,
+    "pit_or_timing_violation_count": 0,
+    "missing_or_unexpected_row_count": 0,
+    "duplicate_received_row_count": 0,
+    "orphan_or_broken_lineage_count": 0,
+    "policy_reference_error_count": 0
+  },
+  "tests": {
+    "local_full_suite": {
+      "passed": 670,
+      "skipped": 4,
+      "failed": 0
+    },
+    "p05_schema_and_semantics": {
+      "passed": 11,
+      "skipped": 0,
+      "failed": 0
+    },
+    "task8_financial_contract": {
+      "passed": 4,
+      "skipped": 0,
+      "failed": 0
+    },
+    "c_receive_validation": {
+      "passed": 19,
+      "failed": 0
+    }
+  },
+  "code_provenance": {
+    "pipeline_code_snapshot_commit": "c40193de9d2e04145226599c03fecff48037d007",
+    "code_provenance_record_commit": "b1cde9ed3a020757300a60f524e053904de1ffec",
+    "scope_amendment_commit": "a6e7b6a2948dcc9e487e4e1f377872c37240c1f8",
+    "final_validator_commit": "68e5ef0992fe4d2cf6f657310ee5d0363b8adadf",
+    "code_provenance_record_sha256": "28c15ba0ab3216e29068bfe5e43b3abdcc59f125cc58bccfca8ab5529d96c1db",
+    "scope_amendment_sha256": "506ae9324e26f9f65ddab69a366b447be2de2c4590b3b85f315b73e7a25debd9",
+    "historical_frozen_manifests_rewritten": false
+  },
+  "bp_boundary": {
+    "real_data_validated": true,
+    "authoritative_snapshot_status": "FROZEN",
+    "authoritative_rows_preserved": 90,
+    "included_in_this_chapter6_acceptance": false,
+    "valuation_factor_handoff_contract_ready": false,
+    "task8_receive_accepted": false,
+    "chapter6_complete_for_bp": false
+  },
+  "production_gates": {
+    "independent_evidence_review": "PASS_FOR_ACCEPTED_RESEARCH_SCOPE",
+    "real_data_contract_and_authorization": "PASS_FOR_ACCEPTED_RESEARCH_SCOPE",
+    "pit_versions_and_historical_universe": "PARTIAL_LIMITED_TO_CONTROLLED_SAMPLE",
+    "net_cost_out_of_sample_significance_and_reproducibility": "NOT_EVALUATED",
+    "overall": "NOT_PRODUCTION_READY"
+  },
+  "explicit_limitations": [
+    "The controlled sample contains 30 securities and 3 evaluation dates and does not establish full-market statistical significance.",
+    "BP is frozen in the authoritative snapshot but is outside the quarterly-financial P05 and this Chapter 6 acceptance.",
+    "RQData does not provide a documented permanent source-record ID or legal revision sequence; deterministic internal lineage IDs are used.",
+    "Only publication dates, not intraday announcement timestamps, are available; strictly-next-session timing is intentionally conservative.",
+    "Net-of-cost out-of-sample strategy performance, turnover, slippage, limit states, and full historical-universe robustness are not established.",
+    "The pipeline code commit is a post-run capture of the pre-existing worktree and does not rewrite the historical frozen manifests."
+  ],
+  "research_conclusion": "research usable",
+  "chapter6_complete": true,
+  "chapter6_complete_scope_limited": true,
+  "production_ready": false,
+  "authoritative_snapshot_ready": true,
+  "p05_ready": true,
+  "task8_ready": true,
+  "next_work_requires_separate_authorization": [
+    "BP_VALUATION_FACTOR_HANDOFF_AND_TASK8_RECEIVE",
+    "EXPANDED_FULL_MARKET_OUT_OF_SAMPLE_PRODUCTION_VALIDATION"
+  ]
+}

@@ -1,0 +1,72 @@
+{
+  "task_id": "ROE-REGISTRY-SEMANTIC-UNIFICATION",
+  "amendment_id": "ROE-REGISTRY-SEMANTICS-01",
+  "record_type": "REGISTRY_SEMANTIC_AND_FORMULA_VERSION_AMENDMENT",
+  "status": "ROE_REGISTRY_SEMANTICS_UNIFIED",
+  "accepted_at_utc": "2026-08-14T07:59:30.9897536Z",
+  "canonical_definition": {
+    "machine_factor_id": "ROE",
+    "canonical_semantic_name": "ROE_TTM_ENDING_EQUITY",
+    "formula_id": "FORMULA_ROE_TTM_ENDING_EQUITY",
+    "formula_version": 1,
+    "formula_reference": "FORMULA_ROE_TTM_ENDING_EQUITY_V1",
+    "formula": "np_parent_company_ownersTTM / equity_parent_company",
+    "numerator_source": "np_parent_company_ownersTTM",
+    "denominator_source": "equity_parent_company",
+    "accounting_scope": "consolidated attributable parent profit / ending parent equity",
+    "period_semantics": "TTM numerator; report-period-end denominator"
+  },
+  "version_semantics": {
+    "formula_version_authority": "financial_factor_registry",
+    "formula_version_value": 1,
+    "frozen_factor_version_value": "AUTHORITATIVE_FINANCIAL_FACTORS_V1",
+    "frozen_factor_version_interpretation": "dataset/package contract version; not the ROE formula version",
+    "formula_change_requires_new_version": true,
+    "semantic_change_requires_new_canonical_name_or_explicit_migration": true
+  },
+  "compatibility_aliases": [
+    "ROE",
+    "ROE_TTM_PARENT_ENDING_EQUITY",
+    "RETURN_ON_EQUITY_TTM_ENDING_EQUITY",
+    "FORMULA_ROE_TTM_ENDING_EQUITY_V1"
+  ],
+  "explicit_non_equivalents": [
+    "return_on_equity_ttm",
+    "return_on_equity_weighted_average",
+    "roe_diluted"
+  ],
+  "non_equivalence_reason": "Provider-computed or weighted-average ROE fields do not prove equality with TTM attributable parent profit divided by report-period-end parent equity.",
+  "migration_policy": {
+    "historical_machine_factor_id_changed": false,
+    "historical_semantic_name_changed": false,
+    "historical_formula_reference_changed": false,
+    "frozen_authoritative_rows_rewritten": false,
+    "frozen_p05_rewritten": false,
+    "historical_acceptance_records_rewritten": false,
+    "future_pipeline_must_resolve_registry": true,
+    "unknown_or_non_equivalent_roe_names_fail_closed": true
+  },
+  "validation": {
+    "status": "PASS",
+    "checks_passed": 11,
+    "checks_failed": 0,
+    "frozen_roe_rows_validated": 90,
+    "validation_artifact": "artifacts/roe_registry_semantics/ROE_REGISTRY_SEMANTICS_VALIDATION.json",
+    "validation_sha256": "a4776ab7750c99fb9232840ecb229b9054c24002be8ad7b709b4e94802e1bb74",
+    "authoritative_rows_sha256": "8f26abb9674d58ade70dc29d66feda62605fe4c64a83b5ad483da56afa198b4a",
+    "p05_rows_sha256": "674b952f0fd7608f282a2420d7e0453a55c4db9ebaf0a2a00be4518e4137c803",
+    "hash_drift_detected": false
+  },
+  "tests": {
+    "full_suite_passed": 699,
+    "full_suite_skipped": 4,
+    "full_suite_failed": 0
+  },
+  "code_provenance": {
+    "registry_unification_commit": "f69caefda14597b7bb0e83e21304c26f533e4688",
+    "provider_non_equivalence_commit": "751165e5b84dc57229d11e09135b945d01de5789"
+  },
+  "rqdata_query_performed": false,
+  "production_ready": false,
+  "research_conclusion": "research usable"
+}

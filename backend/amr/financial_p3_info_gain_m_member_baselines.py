@@ -11,10 +11,10 @@ from __future__ import annotations
 import hashlib
 import inspect
 import json
-import math
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Mapping, Sequence
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -23,6 +23,7 @@ from backend.amr.evaluation_core import (
     EvaluationStatus,
     SecurityLevelEvaluationResult,
 )
+from backend.amr.financial_fingerprint import canonicalize_financial_fingerprint
 from backend.amr.financial_mvp_m_evaluation import (
     FinancialMVPMEvaluationConfig,
     _evaluate_one_factor,
@@ -31,16 +32,17 @@ from backend.amr.financial_p3_info_gain_contract import INFO_GAIN_COMBO_ORDER
 from backend.amr.financial_p3_info_gain_inputs import (
     InfoGainInputPreparationResult,
     PreparedInfoGainCommonSampleInput,
+    compute_info_gain_input_output_fingerprint,
     serialize_info_gain_input_preparation_result,
 )
-
 
 INFO_GAIN_02B_SCHEMA_VERSION = "FinancialP3InfoGainMMemberBaselines-v1.0"
 INFO_GAIN_02B_AUDIT_SCHEMA_VERSION = (
     "FinancialP3InfoGainMMemberBaselineAudit-v1.0"
 )
 INFO_GAIN_02B_POLICY_VERSION = "FIN-P3-INFO-GAIN-02B-POLICY-v1.0"
-INFO_GAIN_02B_HASH_CONTRACT_VERSION = "FIN-P3-INFO-GAIN-02B-HASH-v1.0"
+INFO_GAIN_02B_HASH_CONTRACT_VERSION = "FIN-P3-INFO-GAIN-02B-HASH-v2.1"
+INFO_GAIN_02B_FINGERPRINT_FLOAT_DECIMALS = 8
 INFO_GAIN_02B_PRODUCTION_STATUS = "not production ready"
 INFO_GAIN_02B_CONCLUSION_BOUNDARY = (
     "M-track common-sample member baselines only. No F/R evaluation, "
@@ -49,13 +51,13 @@ INFO_GAIN_02B_CONCLUSION_BOUNDARY = (
 )
 
 ACCEPTED_INFO_GAIN_02A_OUTPUT_FINGERPRINT = (
-    "b9e395416742f79edfd992d176582432ce644251f46cbfadb7d5a9ab661a43ef"
+    "1599c601f11da9d67adf7d538f80fe75488ac2481c0794678d6660589ea1c48e"
 )
 ACCEPTED_INFO_GAIN_CONTRACT_HASH = (
-    "e6d51313ae0fb326d4b239dbb3aefe542c8d5d623237b05e7678959436766747"
+    "0d2016de40a3babdb2bd973f94a1876b7a6046ee2578b2e07657cccaf78a124b"
 )
 ACCEPTED_M_EVALUATOR_SOURCE_SHA256 = (
-    "94e5c4a7808273fd4d6f5158b5cabc9dc07cdd0bd94dcbca91802a4d0bd74cea"
+    "42a4571299794d3900d43ed1983d82297e7457c3d65950ac6c7eaf43a3daab57"
 )
 M_EVALUATOR_REFERENCE = (
     "backend.amr.financial_mvp_m_evaluation:_evaluate_one_factor"
@@ -302,7 +304,7 @@ def evaluate_financial_p3_info_gain_m_member_baselines(
                     configuration=configuration,
                     evaluator_hash=evaluator_hash,
                 )
-            except Exception as exc:  # retain auditable failure instead of hiding it
+            except Exception as exc:  # noqa: BLE001 - evaluator boundary is audited
                 evaluation_errors.append(
                     MMemberBaselineIssue(
                         code="M_EVALUATOR_CALL_FAILED",
@@ -366,8 +368,8 @@ def _validate_prepared(prepared, configuration, evaluator_hash):
     if audit.gate_status != "ready" or audit.errors:
         errors.append(_issue("INFO_GAIN_02A_NOT_READY", "02A input gate must be ready"))
     if audit.output_fingerprint != configuration.accepted_02a_output_fingerprint:
-        errors.append(_issue("INFO_GAIN_02A_FINGERPRINT_MISMATCH", "02A output fingerprint drifted"))
-    recomputed = _hash("p3_info_gain_02a_output", [item.to_dict() for item in prepared.packages])
+        errors.append(_issue("INFO_GAIN_02A_FINGERPRINT_MISMATCH", f"02A output fingerprint drifted: expected={configuration.accepted_02a_output_fingerprint} actual={audit.output_fingerprint}"))
+    recomputed = compute_info_gain_input_output_fingerprint(prepared.packages)
     if recomputed != audit.output_fingerprint:
         errors.append(_issue("INFO_GAIN_02A_CONTENT_MISMATCH", "02A packages do not match the accepted output fingerprint"))
     if audit.contract_hash != configuration.accepted_contract_hash:
@@ -544,7 +546,8 @@ def _evaluator_source_sha256() -> str:
     source = inspect.getsourcefile(_evaluate_one_factor)
     if source is None:
         return "unavailable"
-    return hashlib.sha256(Path(source).read_bytes()).hexdigest()
+    normalized = Path(source).read_bytes().replace(b"\r\n", b"\n")
+    return hashlib.sha256(normalized).hexdigest()
 
 
 def _issue(code, message, combo_id=None, member_factor_id=None):
@@ -557,22 +560,19 @@ def _required_text(value, field_name):
 
 
 def _canonical(value):
-    if isinstance(value, Mapping):
-        return {str(key): _canonical(item) for key, item in sorted(value.items(), key=lambda pair: str(pair[0]))}
-    if isinstance(value, (list, tuple)):
-        return [_canonical(item) for item in value]
-    if value is None or isinstance(value, (str, bool, int)):
-        return value
-    if isinstance(value, (float, np.floating)):
-        return float(value) if math.isfinite(float(value)) else None
-    if isinstance(value, np.integer):
-        return int(value)
-    raise TypeError(f"unsupported canonical type: {type(value).__name__}")
+    return canonicalize_financial_fingerprint(
+        value,
+        float_decimals=INFO_GAIN_02B_FINGERPRINT_FLOAT_DECIMALS,
+    )
 
 
 def _hash(domain, value):
     payload = json.dumps(
-        {"domain": domain, "value": _canonical(value)},
+        {
+            "domain": domain,
+            "hash_contract_version": INFO_GAIN_02B_HASH_CONTRACT_VERSION,
+            "value": _canonical(value),
+        },
         ensure_ascii=False,
         sort_keys=True,
         separators=(",", ":"),

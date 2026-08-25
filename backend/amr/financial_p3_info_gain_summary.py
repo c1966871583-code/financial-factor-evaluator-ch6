@@ -1,14 +1,20 @@
 """INFO-GAIN-05: deterministic three-track status summary, without a decision."""
 from __future__ import annotations
-import hashlib,json,math
+
+import hashlib
+import json
+import math
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any,Mapping
+
 import numpy as np
-from backend.amr.financial_p3_info_gain_m_comparisons import MInfoGainResult
-from backend.amr.financial_p3_info_gain_f_comparisons import FInfoGainResult
-from backend.amr.financial_p3_info_gain_r_comparisons import RInfoGainResult
+
 from backend.amr.financial_p3_info_gain_coverage import CoverageResult
-M_FP="6a9f764b450431582b5e5955e04dcc0e05978e543648e65d980e40b188ab0c64";F_FP="04998ae6e9bfda4fa0182b24d902d556879b438169438beacf67055997f77825";R_FP="effd4f7028d98ced2b98fc2131a69d4f80975bde1be0a393d725141fb1cd5e95";COVERAGE_FP="2f5ec56afef1cbe87805c6e04747d2048065808447b07a0ea91782b3b5809be3"
+from backend.amr.financial_p3_info_gain_f_comparisons import FInfoGainResult
+from backend.amr.financial_p3_info_gain_m_comparisons import MInfoGainResult
+from backend.amr.financial_p3_info_gain_r_comparisons import RInfoGainResult
+
+M_FP="b4397b1c454deaa0239fd020f9c77d009fd801eb382f385b8929ac80542588f1";F_FP="04998ae6e9bfda4fa0182b24d902d556879b438169438beacf67055997f77825";R_FP="effd4f7028d98ced2b98fc2131a69d4f80975bde1be0a393d725141fb1cd5e95";COVERAGE_FP="2f5ec56afef1cbe87805c6e04747d2048065808447b07a0ea91782b3b5809be3"
 @dataclass(frozen=True)
 class InfoGainSummaryConfig:
  run_id:str;accepted_m_fingerprint:str=M_FP;accepted_f_fingerprint:str=F_FP;accepted_r_fingerprint:str=R_FP;accepted_coverage_fingerprint:str=COVERAGE_FP;synthetic_test_only:bool=True

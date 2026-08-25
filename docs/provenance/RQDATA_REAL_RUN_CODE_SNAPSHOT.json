@@ -1,0 +1,117 @@
+{
+  "record_type": "POST_RUN_CODE_PROVENANCE_SNAPSHOT",
+  "record_version": "1.0",
+  "created_at_utc": "2026-08-14T07:04:55.7718353Z",
+  "repository": "AMR-FINANCIAL-QUALITY-CI",
+  "branch": "agent/financial-factor-quality-ci",
+  "code_snapshot": {
+    "commit": "c40193de9d2e04145226599c03fecff48037d007",
+    "tree": "090dcdd4978e3166a48a46fc35cbdf5ca7741eac",
+    "parent_commit": "479aa1f3c6c4d7faab3ec6734101106826f24e25",
+    "commit_subject": "Freeze RQData financial data pipeline code snapshot",
+    "snapshot_status": "LOCKED_IN_LOCAL_GIT",
+    "pushed_to_remote": false
+  },
+  "artifact_binding": {
+    "shadow_run_id": "rqdata-shadow-resume-20260811T055417Z-88128e47",
+    "authoritative_run_id": "rqdata-authoritative-20260812T023240Z-16b9b5eba2",
+    "p05_package_id": "p05-financial-0e95e865a647bee1f9e61929",
+    "c_receive_gate": "FIN_HO_8_C",
+    "c_receive_status": "ACCEPTED",
+    "original_manifest_code_commit": "479aa1f3c6c4d7faab3ec6734101106826f24e25",
+    "original_manifest_preserved": true,
+    "frozen_artifacts_modified_by_this_snapshot": false
+  },
+  "provenance_interpretation": {
+    "relationship": "POST_RUN_CAPTURE_OF_THE_PREEXISTING_PIPELINE_WORKTREE",
+    "old_manifest_commit_was_incomplete": true,
+    "old_manifest_commit_rewritten": false,
+    "new_commit_is_the_reproducible_code_baseline_for_the_captured_pipeline": true,
+    "claim_that_the_historical_process_started_from_the_new_commit": false,
+    "reason": "The real-data pipeline files existed in the working tree but were not committed when the artifacts recorded the parent commit. The files are now content-addressed in a dedicated local commit without changing frozen data."
+  },
+  "stage_time_evidence": [
+    {
+      "stage": "SHADOW_TEST",
+      "script": "scripts/rqdata_shadow_resume.py",
+      "script_last_write_utc": "2026-08-11T05:55:24.4902378Z",
+      "artifact": "artifacts/rqdata_shadow_test/manifest.json",
+      "artifact_last_write_utc": "2026-08-11T05:55:25.7974881Z",
+      "script_precedes_artifact": true
+    },
+    {
+      "stage": "AUTHORITATIVE_SNAPSHOT",
+      "script": "scripts/rqdata_authoritative_snapshot.py",
+      "script_last_write_utc": "2026-08-12T02:32:25.3302563Z",
+      "artifact": "artifacts/authoritative_financial_snapshot/manifest.json",
+      "artifact_last_write_utc": "2026-08-12T02:48:26.1340421Z",
+      "script_precedes_artifact": true
+    },
+    {
+      "stage": "B3A_REGENERATION",
+      "script": "scripts/regenerate_b3a_handoff.py",
+      "script_last_write_utc": "2026-08-12T03:06:17.7815438Z",
+      "artifact": "artifacts/fin_ho_8_b3a/handoff_manifest.json",
+      "artifact_last_write_utc": "2026-08-12T03:07:17.6492113Z",
+      "script_precedes_artifact": true
+    },
+    {
+      "stage": "P05_ASSEMBLY",
+      "script": "scripts/assemble_p05_candidate.py",
+      "script_last_write_utc": "2026-08-12T03:29:49.7508270Z",
+      "artifact": "artifacts/p05_candidate_handoff/p05_manifest.json",
+      "artifact_last_write_utc": "2026-08-12T03:29:58.8197757Z",
+      "script_precedes_artifact": true
+    }
+  ],
+  "validation": {
+    "full_local_test_suite": {
+      "passed": 670,
+      "skipped": 4,
+      "failed": 0
+    },
+    "python_compile": "PASS",
+    "rqdatac_import_version": "3.5.2",
+    "rqdata_initialized": false,
+    "real_data_query_performed_during_snapshot": false,
+    "c_receive_revalidation": {
+      "checks_passed": 19,
+      "checks_failed": 0,
+      "hash_drift_detected": false,
+      "real_input_identity": "PASS"
+    }
+  },
+  "data_boundary": {
+    "artifacts_committed": false,
+    "artifacts_gitignored": true,
+    "credentials_committed": false,
+    "credential_values_read_or_printed": false
+  },
+  "tracked_blobs": {
+    ".gitignore": "bf11c265dc268ffe1eb1cc4617668aa8daac9a95",
+    "backend/amr/evaluation_input_contract.py": "d511769c9f7171446d9bd1cb2cb43eb39c3da2c6",
+    "backend/amr/financial_timing.py": "55ea4925e8676b70f6a4eef32ffbe40279a41f31",
+    "backend/amr/forward_returns.py": "2a2f0676bf30b05b495f284d95d66f46f4d216ae",
+    "docs/AMR_FINANCIAL_FACTOR_EVALUATION.md": "92d2275b320652cdd6f556b6e4c9653f0942f666",
+    "scripts/assemble_p05_candidate.py": "cc39793fb93c458b026caccd5a20912abbeb3c87",
+    "scripts/regenerate_b3a_handoff.py": "90e49b5ce10bdf70ef8fe111939821f6de828675",
+    "scripts/rqdata_authoritative_snapshot.py": "45b72839360233a76fe5d6e8c90322029596ac55",
+    "scripts/rqdata_financial_factor_pull.py": "13ca574570a3c601dc909f950ed000ff22181e12",
+    "scripts/rqdata_secure_initialize.py": "994fc486f21aaacaa457da79f06b8fb5aa56aa29",
+    "scripts/rqdata_shadow_resume.py": "a4e16b0f5e96557f61f84cfaeafd13e5fefb8f88",
+    "scripts/rqdata_shadow_validation.py": "b33d2b82522882d4d880eae257525e7355a885cd",
+    "scripts/validate_and_freeze_p05.py": "ff2d734b82d9a0230acc50c97649b91d80434445",
+    "scripts/validate_authoritative_snapshot.py": "5a15e9d8a5eeec673918c70e33a3c5a7b7bfc3df",
+    "scripts/validate_b3a_handoff.py": "fedad8ee07c366e972865ee5f47bbfdcad383cfb",
+    "scripts/validate_c_receive.py": "c6ce5c132ce9a7a0901bb7634b5c846096af09c5",
+    "tests/test_amr_evaluation_input_contract.py": "1f99f23c51f5f8255f11cea280c44bffb5fd9b90",
+    "tests/test_amr_financial_timing.py": "2efefaba78ebe7b841ce04839f0199ddd7d1ba3c",
+    "tests/test_amr_financial_track_m.py": "c9dba0ec7c15530e87f15e0ed31b9304011e86e7",
+    "tests/test_amr_forward_returns.py": "40eb367fd8999d8373e71b1e95d39f2c3d7db2e7"
+  },
+  "remaining_boundary": {
+    "production_ready": false,
+    "chapter6_complete": false,
+    "bp_task8_receive_accepted": false
+  }
+}

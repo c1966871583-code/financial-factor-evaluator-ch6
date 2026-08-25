@@ -10,10 +10,11 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import date
 from enum import Enum
-from typing import Any, Mapping
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -43,11 +44,11 @@ from backend.amr.financial_preprocessing import (
     FinancialPreprocessingResult,
 )
 
-
 M_EVAL_SCHEMA_VERSION = "FinancialMVPMEvaluation-v1.0"
 M_EVAL_AUDIT_SCHEMA_VERSION = "FinancialMVPMEvaluationAudit-v1.0"
 M_EVAL_FACTOR_AUDIT_SCHEMA_VERSION = "FinancialMVPMFactorAudit-v1.0"
-M_EVAL_HASH_CONTRACT_VERSION = "FIN-MVP-M-EVAL-HASH-v1.0"
+M_EVAL_HASH_CONTRACT_VERSION = "FIN-MVP-M-EVAL-HASH-v2.0"
+HASH_FLOAT_DECIMAL_PLACES = 8
 M_EVAL_POLICY_VERSION = "FIN-MVP-M-EVAL-POLICY-v1.0"
 M_EVAL_TRACK = "M"
 M_EVAL_FREQUENCY = "month_end"
@@ -864,7 +865,7 @@ def _evaluate_one_factor(
         )
         values = factor_values.loc[valid]
         valid_returns = returns.loc[valid]
-        sample_size = int(len(values))
+        sample_size = len(values)
         issue_codes: list[str] = []
         rank_ic: float | None = None
         pearson_ic: float | None = None
@@ -1310,6 +1311,7 @@ def _canonical_json_value(value: Any) -> Any:
             return None
         if not math.isfinite(value):
             raise ValueError("non-finite values cannot enter official hashes")
+        value = round(value, HASH_FLOAT_DECIMAL_PLACES)
         if value == 0:
             return 0.0
     return value

@@ -32,7 +32,6 @@ from tests.fixtures.synthetic_financial_preprocessing_cases import (
     make_preprocessing_record,
 )
 
-
 GOLDEN_PATH = (
     Path(__file__).parent
     / "golden"
@@ -357,27 +356,27 @@ class TestDeterminismAndGoldenSnapshot:
     def test_golden_output_hashes_are_exact(self, golden_case):
         snapshot = build_golden_snapshot(golden_case)
         assert snapshot["output"] == {
-            "run_id": "fin-mvp-output-68150aa59b7d17c779648f5b",
+            "run_id": "fin-mvp-output-fbb8fcb3a6a898af4338069e",
             "run_content_hash": (
-                "fcae2be3e10b74444922c8e04f7b6ea9"
-                "09b7e8bea05b5eb2440bf9d17f8b5c0e"
+                "d9927431743f09b99d7dc91a8aec4d7a"
+                "a3095575eaa0723d611bab9aa1b67b3e"
             ),
             "output_audit_hash": (
-                "78db368794899ca6287d7ab2e0df5eea"
-                "641ad99af8826c6e682f402aa5f7983d"
+                "709d7d1b9382f0c2cb3a6fc639cdeb2d"
+                "b4b7bd6d9375daf46c9a95be5fc6db54"
             ),
             "summary_hashes": {
                 "ROE": (
-                    "eebbeeb72332da92f96d44ad7497c34d"
-                    "a9c7700bf92ae1e7f84a0addefe72de1"
+                    "f62c1888f8ecdcc1aa2b3cdd8f631e6b"
+                    "9bf210b80a3c58144bd5fe21d29792cb"
                 ),
                 "BP": (
-                    "25aca1e716a95e5c6410865bfa6e682a"
-                    "dc3847121b99a5f538e47dd3c4d0ca7e"
+                    "a7a77c2116820d6050cc6ae5a639cc16"
+                    "d8be18f6dc0c87cbc60fe607182affe2"
                 ),
                 "OCF_NP": (
-                    "b844ef0effe0eea534fc872b484f70ab"
-                    "f708ab58a1a4f965f6ab2101b6fa3aa9"
+                    "b50917a356822566e8ea781b7cb5d238"
+                    "3db81a2c65009134c98c7ad7336bb36e"
                 ),
             },
             "summary_statuses": snapshot["output"][

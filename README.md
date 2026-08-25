@@ -19,17 +19,21 @@ The exported handoff modules only preserve Chapter 6-side schemas, numeric seman
 
 ## Source
 
-Source worktree: `CH6-G0-worktree-f957d02`
+Source worktree: `AMR-FINANCIAL-QUALITY-CI`
 
-Source HEAD: `f957d02f2f2d97606e2ed40d44f985b05f2ac31a`
+Source branch: `agent/financial-factor-quality-ci`
 
-Export type: clean artifact export without original Git history.
+Source HEAD: `9cff5b1` (`Record RQData full-market quota preflight block`)
+
+Export type: scoped Chapter 6 code-and-governance snapshot without real-data artifacts or credentials.
 
 ## Current status
 
 Accepted research artifacts include PIT timing and lineage, sample formation, preprocessing, MVP and Phase 2 evaluation, Phase 3 common-sample/combination/information-gain evidence, Research Log assembly, QA reports, synthetic contract checks, and Chapter 6-side handoff preparation.
 
-The authoritative B3A financial-quarterly input snapshot remains blocked because the authoritative upstream source chain is unavailable. No P05 candidate package has been formed. `TASK8_READY` is false. Production admission and investment conclusions remain out of scope.
+The controlled real-data acceptance scope covers 30 securities, 3 factors, 3 evaluation dates, and 270 authoritative rows. The accepted factor semantics are `ROE_TTM_ENDING_EQUITY`, `OCF_NP`, and `BP_LF`; BP remains a valuation extension and is not silently reclassified as a quarterly financial-statement P05 field. Financial information becomes effective on the strictly next tradable day after publication, and forward returns follow the frozen 20-session label timeline.
+
+The Chapter 6 final acceptance and BP scope amendment are recorded under `docs/provenance/`. The full-market OOS protocol is frozen for 2016-2025 with a locked 2023-2025 OOS period, date-effective transaction costs, and a PIT-safe universe. Its production preflight is currently blocked by the RQData byte quota, so this repository does not claim production readiness, P05 readiness, or Task 8 readiness.
 
 ## Environment
 
@@ -37,10 +41,12 @@ The authoritative B3A financial-quarterly input snapshot remains blocked because
 - Observed source uv version: uv 0.11.32
 - Dependency declaration: `requirements-factor-lab.txt`
 - Install: `python -m pip install -r requirements-factor-lab.txt`
-- Collect tests: `python -m pytest --collect-only -q tests`
-- Run tests: `python -m pytest -q tests`
+- Current acceptance checks: `python -m pytest -q tests/test_amr_financial_timing.py tests/test_amr_financial_timing_strict_next.py tests/test_amr_forward_returns.py tests/test_amr_financial_factor_registry.py tests/test_amr_production_validation_policy.py tests/test_amr_evaluation_input_contract.py`
+- Current acceptance result: 173 passed (2026-08-17)
 
-Authoritative Chapter 6 environment files were not exported because their provenance or lock consistency was not confirmed. The source worktree does not contain `pyproject.toml` or `uv.lock`; this repository does not fabricate either file.
+The remaining historical tests and golden files are retained as an audit archive of the original export. Some of those golden fingerprints encode the superseded same-day timing assumption and are not the acceptance gate for the strict-next-session amendment.
+
+Authoritative Chapter 6 environment files were not exported because their provenance or lock consistency was not confirmed. This repository does not fabricate a lock file.
 
 ## Data statement
 

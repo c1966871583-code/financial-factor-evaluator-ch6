@@ -1,11 +1,15 @@
 """INFO-GAIN-07: task-level evidence gate, not an investment or production gate."""
 from __future__ import annotations
-import hashlib,json
+
+import hashlib
+import json
 from dataclasses import dataclass
 from typing import Any
-from backend.amr.financial_p3_info_gain_summary import InfoGainSummaryResult
+
 from backend.amr.financial_p3_info_gain_bad_data_gate import BadDataGateResult
-SUMMARY_FP="206cf303fb83c7037dedec376e5908b216f229fca3c71ae27710f8511cef7ad2";BAD_DATA_FP="a267d8e44bf0ffd4ce3b6632afaf58ee3ebfc9877da65bf8982e14ecce9f29f2"
+from backend.amr.financial_p3_info_gain_summary import InfoGainSummaryResult
+
+SUMMARY_FP="beedee8a2c2b36beb62c9eff36b7e12ceebf78b41d93895a551dc1f16561121f";BAD_DATA_FP="a267d8e44bf0ffd4ce3b6632afaf58ee3ebfc9877da65bf8982e14ecce9f29f2"
 @dataclass(frozen=True)
 class InfoGainTaskGateConfig:
  run_id:str;accepted_summary_fingerprint:str=SUMMARY_FP;accepted_bad_data_gate_fingerprint:str=BAD_DATA_FP

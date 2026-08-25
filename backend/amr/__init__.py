@@ -1,5 +1,6 @@
+"""Chapter 6 financial-factor evaluation package.
+
+The dedicated evaluator export deliberately avoids importing the wider AMR
+web application at package-import time.  Consumers import the required
+financial modules directly.
 """
-AMR factor platform backend module.
-"""
-from .routes import amr_bp  # noqa: F401
-from .factor_registry import FactorRegistry, FactorRegistryEntry, amr_factor_registry  # noqa: F401

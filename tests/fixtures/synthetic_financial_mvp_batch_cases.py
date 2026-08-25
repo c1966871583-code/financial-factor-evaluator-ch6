@@ -5,8 +5,8 @@ from copy import deepcopy
 
 from backend.amr.financial_lineage import build_financial_provenance
 from backend.amr.financial_mvp_batch import (
-    MVPBatchConfig,
     SUPPORTED_FACTOR_IDS,
+    MVPBatchConfig,
     formula_definition_for,
 )
 from backend.amr.financial_sample import (
@@ -17,7 +17,6 @@ from backend.amr.financial_source_adapter import (
     adapt_financial_source_records,
 )
 from backend.amr.financial_timing import FinancialTimingPolicy
-
 
 CODE = "SYNMVP001"
 REPORT_PERIOD = "2023-09-30"
@@ -64,9 +63,7 @@ def make_mvp_batch_inputs(path_type="A"):
     lineage_references = {}
     sample_references = {}
     for factor_id in SUPPORTED_FACTOR_IDS:
-        record, lineage_reference, sample_reference = _factor_case(
-            factor_id, path_type
-        )
+        record, lineage_reference, sample_reference = _factor_case(factor_id, path_type)
         records.append(record)
         lineage_references[factor_id] = lineage_reference
         sample_references[factor_id] = sample_reference
@@ -74,7 +71,11 @@ def make_mvp_batch_inputs(path_type="A"):
         records,
         lineage_references,
         sample_references,
-        MVPBatchConfig(),
+        MVPBatchConfig(
+            universe="ALL_A_SHARE",
+            universe_version="synthetic-all-a-v1",
+            universe_filter="listed_and_pit_eligible",
+        ),
         deepcopy(list(SYNTHETIC_FUTURE_LABELS)),
     )
 
@@ -135,9 +136,7 @@ def _factor_case(factor_id, path_type):
         "supersedes_reference": "not_applicable",
         "transformation_reference": "synthetic-mvp-transform-v1",
         "formula_reference": (
-            formula.formula_reference
-            if path_type == "B"
-            else "not_applicable"
+            formula.formula_reference if path_type == "B" else "not_applicable"
         ),
         "upstream_calculation_reference": (
             upstream_reference if path_type == "A" else "not_applicable"
@@ -172,8 +171,7 @@ def _factor_case(factor_id, path_type):
             {
                 "evaluation_date": EVALUATION_DATE,
                 "code": CODE,
-                "universe_record_id":
-                    f"mvp-universe-{factor_id}-{EVALUATION_DATE}",
+                "universe_record_id": f"mvp-universe-{factor_id}-{EVALUATION_DATE}",
                 "in_universe": True,
                 "factor_applicable": True,
                 "listed_date": "2020-01-01",
@@ -199,19 +197,17 @@ def _factor_case(factor_id, path_type):
         "publish_date": PUBLISH_DATE,
         "effective_date": EFFECTIVE_DATE,
         "path_type": path_type,
-        "source_snapshot_fingerprint":
-            lineage.source_snapshot_fingerprint,
+        "sector_type": "NON_FINANCIAL",
+        "market_cap_as_of": EVALUATION_DATE if factor_id == "BP" else None,
+        "source_snapshot_fingerprint": lineage.source_snapshot_fingerprint,
         "synthetic_test_only": True,
     }
     if path_type == "A":
         upstream_version = f"UPSTREAM-{factor_id}-v1.0"
         upstream_hash = hashlib.sha256(
-            (
-                factor_id
-                + upstream_version
-                + source_record_id
-                + str(value)
-            ).encode("utf-8")
+            (factor_id + upstream_version + source_record_id + str(value)).encode(
+                "utf-8"
+            )
         ).hexdigest()
         record.update(
             {

@@ -1,17 +1,23 @@
 """INFO-GAIN-03A: M-track combo-to-each-member comparisons on frozen output."""
 from __future__ import annotations
-import hashlib,json,math
+
+import hashlib
+import json
+import math
 from dataclasses import dataclass
-from typing import Any,Mapping
-import numpy as np
+from typing import Any
+
+from backend.amr.financial_fingerprint import canonicalize_financial_fingerprint
 from backend.amr.financial_p3_combinations import FinancialP3CombinationsResult
 from backend.amr.financial_p3_info_gain_m_member_baselines import MMemberBaselineResult
 
-COMBO_FP="7c8686b44f3842f159b3fbbc45aa9908f3bf81acd5ebec381f8ac4f5c1933fa2"
-MEMBER_FP="2a92a8b8896c4dc153853e0bf23c3c1dd950747d7552dd2ca5373480fe541970"
-CONTRACT_HASH="e6d51313ae0fb326d4b239dbb3aefe542c8d5d623237b05e7678959436766747"
+COMBO_FP="514e5296ac1ca3afc4dc9d43882579cd43d4830a4234e75b9e95685119e7838a"
+MEMBER_FP="77716c14fdc901aaa4ece76e943798e0d9ac9ab8692f213724dde948d0a22ed0"
+CONTRACT_HASH="0d2016de40a3babdb2bd973f94a1876b7a6046ee2578b2e07657cccaf78a124b"
 ORDER=("VQ","QG","CASHQ")
 METRICS=("rank_ic_mean","pearson_ic_mean","rank_ic_ir","pearson_ic_ir","rank_ic_hac_t_stat","pearson_ic_hac_t_stat","rank_ic_positive_ratio","pearson_ic_positive_ratio","quantile_returns","long_short_mean","monotonicity_spearman","fm_mean_r2","rank_ic_rolling_stability")
+M_COMPARISON_HASH_CONTRACT_VERSION="FIN-P3-INFO-GAIN-03A-HASH-v2.1"
+M_COMPARISON_FINGERPRINT_FLOAT_DECIMALS=8
 COMMON={"rank_ic_mean":("mean_rank_ic","rank_ic_mean","higher"),"rank_ic_ir":("icir","rank_ic_ir","higher"),"rank_ic_positive_ratio":("positive_ic_ratio","rank_ic_positive_ratio","higher"),"quantile_returns":("group_returns","quantile_returns","detail_only"),"long_short_mean":("long_short_spread","long_short_mean","higher"),"monotonicity_spearman":("monotonicity","monotonicity_spearman","higher")}
 
 @dataclass(frozen=True)
@@ -67,7 +73,7 @@ def compare_financial_p3_info_gain_m(combinations:FinancialP3CombinationsResult,
 
 def _row(combo,member,metric,cm,mr):
  if metric not in COMMON:return MMetricIncrement(combo,member,metric,None,None,None,None,"not_evaluable","not_evaluable","METRIC_NOT_AVAILABLE_ON_BOTH_SIDES")
- ca,ma,direction=COMMON[metric]; cv=getattr(cm,ca); mv=getattr(mr,ma)
+ ca,ma,_direction=COMMON[metric]; cv=getattr(cm,ca); mv=getattr(mr,ma)
  if metric=="quantile_returns": return MMetricIncrement(combo,member,metric,{str(i+1):v for i,v in enumerate(cv)},dict(mv),None,None,"completed","detail_only",None)
  if cv is None or mv is None:return MMetricIncrement(combo,member,metric,cv,mv,None,None,"not_evaluable","not_evaluable","NONFINITE_OR_MISSING")
  inc=float(cv)-float(mv); rel=None if math.isclose(float(mv),0,abs_tol=1e-12) else inc/abs(float(mv))
@@ -78,10 +84,5 @@ def serialize_m_info_gain_result(result):
  if not isinstance(result,MInfoGainResult):raise TypeError("result must be MInfoGainResult")
  return json.dumps(_canon(result.to_dict()),ensure_ascii=False,sort_keys=True,separators=(",",":"),allow_nan=False)
 def _canon(v):
- if isinstance(v,Mapping):return {str(k):_canon(x) for k,x in sorted(v.items(),key=lambda p:str(p[0]))}
- if isinstance(v,(list,tuple)):return [_canon(x) for x in v]
- if v is None or isinstance(v,(str,bool,int)):return v
- if isinstance(v,(float,np.floating)):return float(v) if math.isfinite(float(v)) else None
- if isinstance(v,np.integer):return int(v)
- raise TypeError(type(v).__name__)
-def _hash(domain,value):return hashlib.sha256(json.dumps({"domain":domain,"value":_canon(value)},ensure_ascii=False,sort_keys=True,separators=(",",":"),allow_nan=False).encode()).hexdigest()
+ return canonicalize_financial_fingerprint(v,float_decimals=M_COMPARISON_FINGERPRINT_FLOAT_DECIMALS)
+def _hash(domain,value):return hashlib.sha256(json.dumps({"domain":domain,"hash_contract_version":M_COMPARISON_HASH_CONTRACT_VERSION,"value":_canon(value)},ensure_ascii=False,sort_keys=True,separators=(",",":"),allow_nan=False).encode()).hexdigest()

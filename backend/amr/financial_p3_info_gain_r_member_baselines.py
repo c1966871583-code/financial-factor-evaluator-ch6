@@ -11,22 +11,26 @@ import hashlib
 import inspect
 import json
 import math
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Mapping
 
 import numpy as np
 
 from backend.amr.financial_p2_r_evidence import evaluate_financial_p2_r_evidence
 from backend.amr.financial_p3_info_gain_contract import INFO_GAIN_COMBO_ORDER
-from backend.amr.financial_p3_info_gain_inputs import InfoGainInputPreparationResult, serialize_info_gain_input_preparation_result
+from backend.amr.financial_p3_info_gain_inputs import (
+    InfoGainInputPreparationResult,
+    compute_info_gain_input_output_fingerprint,
+    serialize_info_gain_input_preparation_result,
+)
 
 SCHEMA = "FinancialP3InfoGainRMemberBaselines-v1.0"
 AUDIT_SCHEMA = "FinancialP3InfoGainRMemberBaselineAudit-v1.0"
 POLICY = "FIN-P3-INFO-GAIN-02D-POLICY-v1.0"
 HASH_CONTRACT = "FIN-P3-INFO-GAIN-02D-HASH-v1.0"
-ACCEPTED_02A = "b9e395416742f79edfd992d176582432ce644251f46cbfadb7d5a9ab661a43ef"
-CONTRACT_HASH = "e6d51313ae0fb326d4b239dbb3aefe542c8d5d623237b05e7678959436766747"
+ACCEPTED_02A = "1599c601f11da9d67adf7d538f80fe75488ac2481c0794678d6660589ea1c48e"
+CONTRACT_HASH = "0d2016de40a3babdb2bd973f94a1876b7a6046ee2578b2e07657cccaf78a124b"
 R_EVALUATOR_HASH = "f2ad1291b7aa885d77031f4d2feebcdbd620a84039855d145b254bde10dda57e"
 R_EVALUATOR_REFERENCE = "backend.amr.financial_p2_r_evidence.evaluate_financial_p2_r_evidence"
 INPUT_REASON = "CONTEXT_NOT_FROZEN"
@@ -102,8 +106,8 @@ def serialize_r_member_baseline_result(result: RMemberBaselineResult) -> str:
 def _validate(prepared, configuration, evaluator_hash):
     errors=[]; audit=prepared.audit
     if audit.gate_status != "ready" or audit.errors: errors.append(_issue("INFO_GAIN_02A_NOT_READY","02A input gate must be ready"))
-    if audit.output_fingerprint != configuration.accepted_02a_output_fingerprint: errors.append(_issue("INFO_GAIN_02A_FINGERPRINT_MISMATCH","02A output fingerprint drifted"))
-    if _hash("p3_info_gain_02a_output",[x.to_dict() for x in prepared.packages]) != audit.output_fingerprint: errors.append(_issue("INFO_GAIN_02A_CONTENT_MISMATCH","02A packages do not match accepted output"))
+    if audit.output_fingerprint != configuration.accepted_02a_output_fingerprint: errors.append(_issue("INFO_GAIN_02A_FINGERPRINT_MISMATCH",f"02A output fingerprint drifted: expected={configuration.accepted_02a_output_fingerprint} actual={audit.output_fingerprint}"))
+    if compute_info_gain_input_output_fingerprint(prepared.packages) != audit.output_fingerprint: errors.append(_issue("INFO_GAIN_02A_CONTENT_MISMATCH","02A packages do not match accepted output"))
     if audit.contract_hash != configuration.accepted_contract_hash: errors.append(_issue("CONTRACT_HASH_MISMATCH","INFO-GAIN-01 contract hash drifted"))
     if evaluator_hash != configuration.expected_evaluator_source_sha256: errors.append(_issue("R_EVALUATOR_HASH_MISMATCH","accepted R evaluator source drifted"))
     if tuple(x.combo_id for x in prepared.packages) != INFO_GAIN_COMBO_ORDER: return errors+[_issue("COMBO_ORDER_MISMATCH","packages must be VQ, QG, CASHQ")]
@@ -127,7 +131,10 @@ def _result(prepared,bundles,errors,h):
     return RMemberBaselineResult(bundles,RMemberBaselineAudit(**{**payload,"errors":tuple(errors),"content_hash":_hash("p3_info_gain_02d_audit",payload)}))
 
 def _evaluator_hash():
-    source=inspect.getsourcefile(evaluate_financial_p2_r_evidence); return hashlib.sha256(Path(source).read_bytes()).hexdigest() if source else "unavailable"
+    source=inspect.getsourcefile(evaluate_financial_p2_r_evidence)
+    if source is None:return "unavailable"
+    normalized=Path(source).read_bytes().replace(b"\r\n",b"\n")
+    return hashlib.sha256(normalized).hexdigest()
 def _issue(code,message,combo_id=None): return RMemberBaselineIssue(code,message,combo_id)
 def _canon(v):
     if isinstance(v,Mapping): return {str(k):_canon(x) for k,x in sorted(v.items(),key=lambda z:str(z[0]))}

@@ -1,10 +1,14 @@
 """FIN-P3-LOG-07: final immutable Research Log assembly audit."""
 from __future__ import annotations
-import hashlib,json
+
+import hashlib
+import json
 from dataclasses import dataclass
 from typing import Any
+
 from backend.amr.financial_p3_research_log_serialization import FinancialP3ResearchLog
-LOG_HASH="ca3bc2b4987b28be0af63c9a24cd86a12f835fd0d05f2c41d8422df0976cec5a"
+
+LOG_HASH="0d1adc7323c319f343ca44a2c5679f216b67a3eb0acb8992288baa8d1dc1dcaf"
 @dataclass(frozen=True)
 class ResearchLogAssemblyResult:
  gate_status:str;section_count:int;research_log_content_hash:str;output_fingerprint:str;content_hash:str

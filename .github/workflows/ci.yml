@@ -1,0 +1,55 @@
+name: AMR CI
+
+"on":
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: amr-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: AMR Owned Checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up uv and Python
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          python-version: "3.11"
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Sync locked dependencies
+        run: uv sync --frozen
+
+      - name: Verify locked CI toolchain contract
+        run: >-
+          uv run --frozen python -m pytest
+          tests/test_amr_ci_toolchain.py -q -p no:cacheprovider
+
+      - name: Run AMR correctness lint
+        run: >-
+          uv run --frozen ruff check backend/amr tests
+          --select E9,F63,F7,F82 --no-cache
+
+      - name: Run AMR regression tests
+        run: >-
+          uv run --frozen python -m pytest tests/test_amr_*.py
+          -q -p no:cacheprovider
+      - name: Run S-level public-core performance check
+        run: >-
+          uv run --frozen python -m pytest
+          "tests/performance/amr_price_volume_stress.py::test_stress_scale[S]"
+          "tests/performance/amr_price_volume_stress.py::TestGapProbes"
+          -q -p no:cacheprovider

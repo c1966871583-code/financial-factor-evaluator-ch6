@@ -33,7 +33,7 @@ from backend.amr.financial_mvp_m_evaluation import (
     M_EVAL_SCHEMA_VERSION,
     M_EVAL_VALUE_VARIANT,
     FinancialMVPMEvaluationConfig,
-    MEvaluationErrorCode,
+    _versioned_hash,
     evaluate_financial_mvp_m,
 )
 from tests.fixtures.synthetic_financial_mvp_m_evaluation_cases import (
@@ -92,6 +92,13 @@ def _returns_with_frame(source, frame, **overrides):
 
 
 class TestFrozenContract:
+    def test_v2_hash_normalizes_subprecision_float_noise(self):
+        left = {"value": 0.123456781, "zero": -0.0}
+        right = {"value": 0.123456782, "zero": 0.0}
+        assert _versioned_hash("float-parity", left) == (
+            _versioned_hash("float-parity", right)
+        )
+
     def test_versions_and_scope_constants_are_frozen(self):
         assert M_EVAL_SCHEMA_VERSION == "FinancialMVPMEvaluation-v1.0"
         assert (
@@ -103,7 +110,7 @@ class TestFrozenContract:
             == "FinancialMVPMFactorAudit-v1.0"
         )
         assert M_EVAL_HASH_CONTRACT_VERSION == (
-            "FIN-MVP-M-EVAL-HASH-v1.0"
+            "FIN-MVP-M-EVAL-HASH-v2.0"
         )
         assert M_EVAL_POLICY_VERSION == "FIN-MVP-M-EVAL-POLICY-v1.0"
         assert (

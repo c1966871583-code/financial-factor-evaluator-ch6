@@ -1,0 +1,34 @@
+[project]
+name = "financial-factor-evaluator-ch6"
+version = "0.1.0"
+description = "Chapter 6 financial factor evaluation and PIT validation"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "flask>=3.0",
+    "flask-cors>=5.0",
+    "numpy>=2.0",
+    "pandas>=2.2",
+    "scipy>=1.14",
+]
+
+[project.optional-dependencies]
+amazingdata = [
+    "clickhouse-driver>=0.2.9",
+]
+bp-valuation = [
+    "pyarrow>=18,<26",
+]
+
+[dependency-groups]
+dev = [
+    "pydantic>=2.10,<3",
+    "pytest>=8.3,<10",
+    "ruff>=0.9,<1",
+]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

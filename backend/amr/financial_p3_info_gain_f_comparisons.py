@@ -1,13 +1,18 @@
 """INFO-GAIN-03B: formal F-track combo/member comparison availability."""
 from __future__ import annotations
-import hashlib,json,math
+
+import hashlib
+import json
+import math
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any,Mapping
+
 import numpy as np
+
 from backend.amr.financial_p3_combinations import FinancialP3CombinationsResult
 from backend.amr.financial_p3_info_gain_f_member_baselines import FMemberBaselineResult
 
-COMBO_FP="7c8686b44f3842f159b3fbbc45aa9908f3bf81acd5ebec381f8ac4f5c1933fa2"; MEMBER_FP="657bd843d245aa2379105612acfe0cabc7c09da538819a2abd6719352c22e64c"; CONTRACT_HASH="e6d51313ae0fb326d4b239dbb3aefe542c8d5d623237b05e7678959436766747"; ORDER=("VQ","QG","CASHQ"); METRICS=("oos_mae","relative_mae_improvement","residual_rank_ic","interval_coverage","interval_calibration_error")
+COMBO_FP="514e5296ac1ca3afc4dc9d43882579cd43d4830a4234e75b9e95685119e7838a"; MEMBER_FP="657bd843d245aa2379105612acfe0cabc7c09da538819a2abd6719352c22e64c"; CONTRACT_HASH="0d2016de40a3babdb2bd973f94a1876b7a6046ee2578b2e07657cccaf78a124b"; ORDER=("VQ","QG","CASHQ"); METRICS=("oos_mae","relative_mae_improvement","residual_rank_ic","interval_coverage","interval_calibration_error")
 @dataclass(frozen=True)
 class FInfoGainComparisonConfig:
  run_id:str; accepted_combination_fingerprint:str=COMBO_FP; accepted_member_fingerprint:str=MEMBER_FP; accepted_contract_hash:str=CONTRACT_HASH; synthetic_test_only:bool=True

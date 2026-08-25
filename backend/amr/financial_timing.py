@@ -12,13 +12,16 @@ calendar-service, or production-data access.
 
 from __future__ import annotations
 
+import bisect
 import copy
+import hashlib
 from dataclasses import dataclass, field
 from datetime import date, datetime, time
 from enum import Enum
 from typing import Any
 from zoneinfo import ZoneInfo
 
+import pandas as pd
 
 TIMING_POLICY_VERSION = "FIN-R1A-CONSERVATIVE-v1.0"
 MARKET_TIMEZONE = "Asia/Shanghai"
@@ -74,7 +77,7 @@ class TimingIssue:
 
 
 @dataclass(frozen=True)
-class FinancialTimingPolicy:
+class LegacyFinancialTimingPolicy:
     """Frozen timing policy and an explicit, versioned trading calendar."""
 
     trading_days: tuple[str, ...]
@@ -459,7 +462,7 @@ def _parse_announcement_timestamp(
                 "announcement_timestamp",
             )
         try:
-            parsed = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+            parsed = datetime.fromisoformat(raw)
         except ValueError as exc:
             raise _TimingValidationError(
                 ANNOUNCEMENT_TIMESTAMP_INVALID,
@@ -555,3 +558,203 @@ def _optional_text(value: Any) -> str | None:
 
 def _is_missing(value: Any) -> bool:
     return value is None or (isinstance(value, str) and not value.strip())
+class FinancialTimingPolicyError(ValueError):
+    """Fail-closed timing error with a stable audit code."""
+
+    def __init__(self, code: str, message: str) -> None:
+        super().__init__(message)
+        self.code = code
+
+
+def _parse_date_strict(value: Any, *, field_name: str, missing_code: str) -> date:
+    if value is None or pd.isna(value):
+        raise FinancialTimingPolicyError(missing_code, f"{field_name} is required")
+    try:
+        parsed = pd.Timestamp(value)
+    except Exception as exc:
+        raise FinancialTimingPolicyError("INVALID_DATE", f"invalid {field_name}") from exc
+    if pd.isna(parsed):
+        raise FinancialTimingPolicyError(missing_code, f"{field_name} is required")
+    return parsed.date()
+
+
+@dataclass(frozen=True)
+class VersionedTradingCalendar:
+    """Immutable, provenance-bearing market-session snapshot."""
+
+    trading_dates: tuple[str, ...]
+    calendar_provider: str
+    calendar_scope: str
+    calendar_version_or_snapshot_id: str
+    _session_dates: tuple[date, ...] = field(init=False, repr=False)
+    calendar_hash: str = field(init=False)
+
+    def __post_init__(self) -> None:
+        for name, value in (
+            ("calendar_provider", self.calendar_provider),
+            ("calendar_scope", self.calendar_scope),
+            ("calendar_version_or_snapshot_id", self.calendar_version_or_snapshot_id),
+        ):
+            if not str(value).strip():
+                raise FinancialTimingPolicyError("MISSING_CALENDAR_METADATA", f"{name} is required")
+        if not self.trading_dates:
+            raise FinancialTimingPolicyError("EMPTY_TRADING_CALENDAR", "trading calendar is empty")
+
+        parsed = tuple(
+            _parse_date_strict(item, field_name="trading_date", missing_code="INVALID_TRADING_DATE")
+            for item in self.trading_dates
+        )
+        if tuple(sorted(parsed)) != parsed:
+            raise FinancialTimingPolicyError("UNSORTED_TRADING_CALENDAR", "trading dates must be sorted")
+        if len(set(parsed)) != len(parsed):
+            raise FinancialTimingPolicyError("DUPLICATE_TRADING_DATE", "trading dates must be unique")
+
+        canonical = tuple(item.isoformat() for item in parsed)
+        digest = hashlib.sha256(("\n".join(canonical) + "\n").encode("ascii")).hexdigest()
+        object.__setattr__(self, "trading_dates", canonical)
+        object.__setattr__(self, "_session_dates", parsed)
+        object.__setattr__(self, "calendar_hash", digest)
+
+    @property
+    def calendar_start(self) -> str:
+        return self.trading_dates[0]
+
+    @property
+    def calendar_end(self) -> str:
+        return self.trading_dates[-1]
+
+    def next_session_strictly_after(self, value: Any) -> str:
+        target = _parse_date_strict(value, field_name="publish_date", missing_code="MISSING_PUBLISH_DATE")
+        if target < self._session_dates[0] or target > self._session_dates[-1]:
+            raise FinancialTimingPolicyError(
+                "TIMING_CALENDAR_RANGE_INSUFFICIENT",
+                "calendar does not cover publish_date",
+            )
+        position = bisect.bisect_right(self._session_dates, target)
+        if position >= len(self._session_dates):
+            raise FinancialTimingPolicyError(
+                "TIMING_CALENDAR_RANGE_INSUFFICIENT",
+                "calendar does not contain a later trading session",
+            )
+        return self._session_dates[position].isoformat()
+
+    def shift_market_sessions(self, value: Any, sessions: int) -> str:
+        if isinstance(sessions, bool) or not isinstance(sessions, int) or sessions < 1:
+            raise FinancialTimingPolicyError("INVALID_SESSION_HORIZON", "sessions must be a positive integer")
+        target = _parse_date_strict(value, field_name="evaluation_date", missing_code="MISSING_EVALUATION_DATE")
+        position = bisect.bisect_left(self._session_dates, target)
+        if position >= len(self._session_dates) or self._session_dates[position] != target:
+            raise FinancialTimingPolicyError("EVALUATION_DATE_NOT_TRADING_SESSION", "evaluation_date is not in calendar")
+        exit_position = position + sessions
+        if exit_position >= len(self._session_dates):
+            raise FinancialTimingPolicyError(
+                "TIMING_CALENDAR_RANGE_INSUFFICIENT",
+                "calendar does not cover the requested forward horizon",
+            )
+        return self._session_dates[exit_position].isoformat()
+
+    def to_provenance(self) -> dict[str, str]:
+        return {
+            "calendar_provider": self.calendar_provider,
+            "calendar_scope": self.calendar_scope,
+            "calendar_start": self.calendar_start,
+            "calendar_end": self.calendar_end,
+            "calendar_version_or_snapshot_id": self.calendar_version_or_snapshot_id,
+            "calendar_hash": self.calendar_hash,
+        }
+
+@dataclass(frozen=True)
+class FinancialTimingApplicationResult:
+    valid_frame: pd.DataFrame
+    audit_frame: pd.DataFrame
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "valid_frame", self.valid_frame.copy())
+        object.__setattr__(self, "audit_frame", self.audit_frame.copy())
+
+
+@dataclass(frozen=True)
+class StrictNextFinancialTimingPolicy:
+    """Strictly-next-session policy approved for financial PIT records."""
+
+    calendar: VersionedTradingCalendar
+    policy_version: str = "FINANCIAL_TIMING_STRICT_NEXT_V1"
+
+    def derive_effective_date(self, publish_date: Any) -> str:
+        return self.calendar.next_session_strictly_after(publish_date)
+
+    def apply(self, records: pd.DataFrame) -> FinancialTimingApplicationResult:
+        required = {"report_period", "publish_date"}
+        missing = sorted(required - set(records.columns))
+        if missing:
+            raise FinancialTimingPolicyError("MISSING_REQUIRED_COLUMN", f"missing columns: {missing}")
+
+        output = records.copy()
+        effective_dates: list[str | None] = []
+        statuses: list[str] = []
+        for row in output.itertuples(index=False):
+            publish_value = row.publish_date
+            report_value = row.report_period
+            try:
+                publish = _parse_date_strict(
+                    publish_value,
+                    field_name="publish_date",
+                    missing_code="MISSING_PUBLISH_DATE",
+                )
+                report = _parse_date_strict(
+                    report_value,
+                    field_name="report_period",
+                    missing_code="MISSING_REPORT_PERIOD",
+                )
+                if report > publish:
+                    raise FinancialTimingPolicyError(
+                        "INVALID_REPORT_PUBLISH_ORDER",
+                        "report_period must be <= publish_date",
+                    )
+                effective_dates.append(self.derive_effective_date(publish))
+                statuses.append("TIMING_VALID")
+            except FinancialTimingPolicyError as exc:
+                effective_dates.append(None)
+                statuses.append(exc.code)
+
+        output["effective_date"] = effective_dates
+        output["timing_status"] = statuses
+        audit_columns = [
+            column
+            for column in (
+                "code",
+                "factor_id",
+                "report_period",
+                "publish_date",
+                "effective_date",
+                "timing_status",
+            )
+            if column in output.columns
+        ]
+        audit = output[audit_columns].copy()
+        valid = output.loc[output["timing_status"] == "TIMING_VALID"].drop(columns=["timing_status"])
+        return FinancialTimingApplicationResult(valid.reset_index(drop=True), audit.reset_index(drop=True))
+
+    def to_provenance(self) -> dict[str, str]:
+        return {
+            "policy_version": self.policy_version,
+            "availability_rule": "first valid market trading session strictly after publish_date",
+            "same_day_allowed": "false",
+            **self.calendar.to_provenance(),
+        }
+
+
+
+class FinancialTimingPolicy:
+    """Compatibility constructor for legacy audit and strict-next PIT policies.
+
+    A calendar argument selects the current strict-next policy. Legacy
+    trading_days calls retain the original Chapter 6 audit contract.
+    """
+
+    def __new__(cls, *args: Any, **kwargs: Any) -> Any:
+        if "calendar" in kwargs or (
+            args and isinstance(args[0], VersionedTradingCalendar)
+        ):
+            return StrictNextFinancialTimingPolicy(*args, **kwargs)
+        return LegacyFinancialTimingPolicy(*args, **kwargs)

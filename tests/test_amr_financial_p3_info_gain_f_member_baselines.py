@@ -38,7 +38,7 @@ def test_golden_formal_not_run_result(result):
     assert result.audit.gate_status == "ready"
     assert result.audit.input_fingerprint == ACCEPTED_INFO_GAIN_02A_OUTPUT_FINGERPRINT
     assert result.audit.output_fingerprint == "657bd843d245aa2379105612acfe0cabc7c09da538819a2abd6719352c22e64c"
-    assert result.audit.content_hash == "ba48f11804582835a4a7313bd794cf58000e351dc1af23ed2b77c4fc8cb20adb"
+    assert result.audit.content_hash == "df7af30e4fa47c9d2d6cec82041087fa9960787ec349744930f7099b9e2d5ced"
     assert result.audit.member_run_count == result.audit.not_run_count == 11
     assert result.audit.completed_run_count == 0
 

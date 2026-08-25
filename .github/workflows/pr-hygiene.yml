@@ -1,0 +1,110 @@
+name: PR Hygiene
+
+"on":
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  hygiene:
+    name: Scope and Metadata Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Validate PR body sections
+        if: github.event_name == 'pull_request'
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          python - <<'PY'
+          import os
+          import sys
+
+          required = (
+              "# Summary",
+              "# AI Assistance Record",
+              "# Prompt / Instruction Record",
+              "# Validation Evidence",
+              "# Risk Checklist",
+              "# Reviewer Focus",
+          )
+          body = os.environ.get("PR_BODY", "") or ""
+          missing = [section for section in required if section not in body]
+          if missing:
+              print("Missing required PR sections:")
+              for section in missing:
+                  print(f" - {section}")
+              sys.exit(1)
+          print("PR body completeness check passed.")
+          PY
+      - name: Compile changed Python files
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          python - <<'PY'
+          import os
+          import pathlib
+          import py_compile
+          import subprocess
+
+          changed = subprocess.check_output(
+              ["git", "diff", "--name-only", os.environ["BASE_SHA"], "HEAD"],
+              text=True,
+          ).splitlines()
+          targets = [pathlib.Path(item) for item in changed if item.endswith(".py")]
+          for target in targets:
+              if target.exists():
+                  py_compile.compile(str(target), doraise=True)
+          print(f"Compiled {len(targets)} changed Python files successfully.")
+          PY
+
+      - name: Reject machine-specific paths
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          python - <<'PY'
+          import os
+          import pathlib
+          import re
+          import subprocess
+          import sys
+
+          changed = subprocess.check_output(
+              ["git", "diff", "--name-only", os.environ["BASE_SHA"], "HEAD"],
+              text=True,
+          ).splitlines()
+          patterns = (
+              re.compile(r"[A-Za-z]:\\\\"),
+              re.compile(r"/Users/"),
+              re.compile(r"/home/"),
+          )
+          violations = []
+          for item in changed:
+              path = pathlib.Path(item)
+              if not path.exists() or path.suffix.lower() not in {".py", ".yml", ".yaml", ".json", ".txt", ".md"}:
+                  continue
+              if path.as_posix() == ".github/workflows/pr-hygiene.yml":
+                  continue
+              for line_no, line in enumerate(path.read_text(encoding="utf-8", errors="ignore").splitlines(), 1):
+                  if any(pattern.search(line) for pattern in patterns):
+                      violations.append(f"{path}:{line_no}: {line.strip()}")
+          if violations:
+              print("Machine-specific paths found:")
+              print("\n".join(f" - {item}" for item in violations))
+              sys.exit(1)
+          print("No machine-specific path references found.")
+          PY

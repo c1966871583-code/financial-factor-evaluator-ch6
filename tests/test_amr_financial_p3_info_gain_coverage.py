@@ -1,10 +1,20 @@
-import dataclasses,json,pytest
+import dataclasses
+
+import pytest
+
 from backend.amr.financial_p3_info_gain_coverage import *
-from tests.fixtures.synthetic_financial_p3_info_gain_coverage_cases import make_inputs,make_configuration
+from tests.fixtures.synthetic_financial_p3_info_gain_coverage_cases import (
+ make_configuration,
+ make_inputs,
+)
+
+
 @pytest.fixture(scope="module")
 def inputs():return make_inputs()
 @pytest.fixture(scope="module")
 def result(inputs):return report_financial_p3_info_gain_coverage(*inputs,configuration=make_configuration())
+def test_combination_fingerprint_is_cross_platform(inputs):
+ assert inputs[0].combinations_audit.output_fingerprint == COMBO_FP, f"expected={COMBO_FP}, actual={inputs[0].combinations_audit.output_fingerprint}"
 def test_golden(result):
  assert result.audit.gate_status=="ready" and result.audit.combo_count==3 and result.audit.member_coverage_count==11
 def test_common_sample_and_periods(result):

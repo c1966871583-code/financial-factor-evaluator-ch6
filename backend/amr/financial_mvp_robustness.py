@@ -5,9 +5,10 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Mapping
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -35,12 +36,12 @@ from backend.amr.financial_preprocessing import (
     FinancialPreprocessingResult,
 )
 
-
 ROBUSTNESS_SCHEMA_VERSION = "FinancialMVPRobustness-v1.0"
 ROBUSTNESS_AUDIT_SCHEMA_VERSION = "FinancialMVPRobustnessAudit-v1.0"
 ROBUSTNESS_CELL_SCHEMA_VERSION = "FinancialMVPRobustnessCell-v1.0"
 ROBUSTNESS_FACTOR_SCHEMA_VERSION = "FinancialMVPFactorRobustness-v1.0"
-ROBUSTNESS_HASH_CONTRACT_VERSION = "FIN-MVP-ROBUST-HASH-v1.0"
+ROBUSTNESS_HASH_CONTRACT_VERSION = "FIN-MVP-ROBUST-HASH-v2.0"
+HASH_FLOAT_DECIMAL_PLACES = 8
 ROBUSTNESS_POLICY_VERSION = "FIN-MVP-ROBUST-POLICY-v1.0"
 ROBUSTNESS_SPLIT_POLICY = "chronological_equal_halves"
 ROBUSTNESS_VARIANTS = ("raw_pit_factor_value", "evaluation_factor_value")
@@ -1387,6 +1388,7 @@ def _canonical(value: Any) -> Any:
             return None
         if not math.isfinite(value):
             raise ValueError("non-finite value cannot enter official hash")
+        value = round(value, HASH_FLOAT_DECIMAL_PLACES)
         if value == 0:
             return 0.0
     return value

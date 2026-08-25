@@ -13,29 +13,31 @@ import datetime as dt
 import hashlib
 import json
 import math
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from enum import Enum
 from types import MappingProxyType
-from typing import Any, Mapping, Sequence
+from typing import Any
 
 import numpy as np
 import pandas as pd
 
+from backend.amr.financial_fingerprint import canonicalize_financial_fingerprint
 from backend.amr.financial_p3_common_sample import (
     COMMON_SAMPLE_GATE_OUTPUT_FINGERPRINT,
+    FinancialP3CommonSampleAudit,
     FinancialP3CommonSampleBatch,
     FinancialP3CommonSampleComparison,
     FinancialP3CommonSampleConfig,
-    FinancialP3CommonSampleAudit,
     compute_common_sample_manifest_fingerprint,
     evaluate_financial_p3_common_sample,
 )
 
-
 COMBINATIONS_SCHEMA_VERSION = "FinancialP3Combinations-v1.0"
 COMBINATIONS_AUDIT_SCHEMA_VERSION = "FinancialP3CombinationsAudit-v1.0"
 COMBINATIONS_POLICY_VERSION = "FIN-P3-COMBOS-POLICY-v1.0"
-COMBINATIONS_HASH_CONTRACT_VERSION = "FIN-P3-COMBOS-HASH-v1.0"
+COMBINATIONS_HASH_CONTRACT_VERSION = "FIN-P3-COMBOS-HASH-v2.4"
+COMBINATIONS_FINGERPRINT_FLOAT_DECIMALS = 8
 COMBINATIONS_PREDECESSOR_OUTPUT_FINGERPRINT = (
     "a15859003aadf685aeea6bc9941aa62133bba0cf8e5913a1289735d33d94ce6e"
 )
@@ -817,7 +819,7 @@ def _standardize_factor(
     available = eligible & finite
     output = pd.Series(np.nan, index=frame.index, dtype=float)
     period_count = 0
-    for _, indices in frame.loc[available].groupby("evaluation_date").groups.items():
+    for indices in frame.loc[available].groupby("evaluation_date").groups.values():
         values = frame.loc[indices, column].astype(float)
         if len(values) < minimum_cross_section:
             continue
@@ -1219,7 +1221,7 @@ def _required_text(value: Any, field_name: str) -> str:
 def _datetime_text(value: Any, field_name: str) -> str:
     normalized = _required_text(value, field_name)
     try:
-        dt.datetime.fromisoformat(normalized.replace("Z", "+00:00"))
+        dt.datetime.fromisoformat(normalized)
     except ValueError as exc:
         raise ValueError(f"{field_name} must be ISO-8601") from exc
     return normalized
@@ -1236,30 +1238,10 @@ def _is_sha256(value: Any) -> bool:
 
 
 def _canonical(value: Any) -> Any:
-    if isinstance(value, Mapping):
-        return {
-            str(key): _canonical(item)
-            for key, item in sorted(value.items(), key=lambda pair: str(pair[0]))
-        }
-    if isinstance(value, (list, tuple)):
-        return [_canonical(item) for item in value]
-    if isinstance(value, (pd.Timestamp, dt.datetime, dt.date)):
-        return value.isoformat()
-    if isinstance(value, np.generic):
-        value = value.item()
-    if isinstance(value, float):
-        if not math.isfinite(value):
-            return None
-        if value == 0.0:
-            return 0.0
-    if value is pd.NA or value is None:
-        return None
-    try:
-        if bool(pd.isna(value)):
-            return None
-    except (TypeError, ValueError):
-        pass
-    return value
+    return canonicalize_financial_fingerprint(
+        value,
+        float_decimals=COMBINATIONS_FINGERPRINT_FLOAT_DECIMALS,
+    )
 
 
 def _hash(domain: str, value: Any) -> str:
@@ -1267,7 +1249,7 @@ def _hash(domain: str, value: Any) -> str:
         {
             "domain": domain,
             "hash_contract_version": COMBINATIONS_HASH_CONTRACT_VERSION,
-            "value": _canonical(value),
+            "value": _canonical(_without_nested_content_hashes(value)),
         },
         ensure_ascii=False,
         sort_keys=True,
@@ -1275,6 +1257,20 @@ def _hash(domain: str, value: Any) -> str:
         allow_nan=False,
     ).encode("utf-8")
     return hashlib.sha256(payload).hexdigest()
+
+
+def _without_nested_content_hashes(value: Any) -> Any:
+    """Hash semantic payloads without recursively hashing embedded hashes."""
+    if isinstance(value, Mapping):
+        return {
+            key: _without_nested_content_hashes(item)
+            for key, item in value.items()
+            if str(key) != "content_hash"
+            and not str(key).endswith("_fingerprint")
+        }
+    if isinstance(value, (list, tuple)):
+        return [_without_nested_content_hashes(item) for item in value]
+    return value
 
 
 __all__ = [

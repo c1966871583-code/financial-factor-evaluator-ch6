@@ -1,0 +1,66 @@
+{
+  "task_id": "RQDATA-FULL-MARKET-PRODUCTION-PREFLIGHT",
+  "status": "BLOCKED_BY_PROVIDER_QUOTA",
+  "recorded_at_utc": "2026-08-14T08:20:08.7276116Z",
+  "protocol": {
+    "protocol_id": "FULL_MARKET_OOS_VALIDATION_PROTOCOL_V1",
+    "status": "FROZEN",
+    "sha256": "5cf4e55b66ecf24867de142ba2f292a291fe4e2261a5edd1a4200c299c33746b",
+    "history": ["2016-01-01", "2025-12-31"],
+    "development": ["2016-01-01", "2020-12-31"],
+    "validation": ["2021-01-01", "2022-12-31"],
+    "final_oos": ["2023-01-01", "2025-12-31"],
+    "universe": "ALL_A_SHARES_POINT_IN_TIME_WITH_HISTORICAL_DELISTED_SECURITIES",
+    "forward_horizon_market_sessions": 20
+  },
+  "cost_policy": {
+    "policy_id": "CN_A_SHARE_DATE_EFFECTIVE_COST_V1",
+    "commission_bps_each_side": 3.0,
+    "commission_is_research_assumption_inclusive_of_exchange_and_regulatory_fees": true,
+    "transfer_fee_bps_each_side_through_2022_04_28": 0.2,
+    "transfer_fee_bps_each_side_from_2022_04_29": 0.1,
+    "stamp_duty_sell_bps_through_2023_08_27": 10.0,
+    "stamp_duty_sell_bps_from_2023_08_28": 5.0,
+    "base_slippage_bps_each_side": 5.0,
+    "stress_slippage_bps_each_side": 10.0
+  },
+  "preflight": {
+    "rqdatac_version": "3.5.2",
+    "rqdata_initialization": "PASS",
+    "real_data_access_attempted": true,
+    "successful_real_data_query_performed": false,
+    "full_market_historical_pull_performed": false,
+    "failed_operation": "get_trading_dates",
+    "failed_scope": "2025 single-year confirmation after chunked preflight",
+    "error_type": "QuotaExceeded",
+    "error_category": "PROVIDER_QUOTA_EXCEEDED",
+    "preflight_artifact_sha256": "fe7c61d55a8a3b238fc40600dbc4f9b5b892d0c69073efabe5f91235148f1d30",
+    "identifiers_persisted": false,
+    "credential_values_exposed": false
+  },
+  "production_gates": {
+    "independent_evidence_review": "PASS_ONLY_FOR_PRIOR_CONTROLLED_SCOPE",
+    "real_data_contract_and_authorization": "PROTOCOL_FROZEN_PROVIDER_QUOTA_BLOCKED",
+    "pit_versions_and_historical_universe": "NOT_TESTED_PROVIDER_QUOTA_BLOCKED",
+    "net_cost_final_oos_significance_and_reproducibility": "NOT_RUN",
+    "overall": "NOT_PRODUCTION_READY"
+  },
+  "tests": {
+    "full_suite_passed": 704,
+    "full_suite_skipped": 4,
+    "full_suite_failed": 0
+  },
+  "code_provenance": {
+    "protocol_commit": "27a3756e7b570ef95434832a11b4e4d61142d8d3",
+    "preflight_initial_commit": "5c7e560b9567bc395b11beb82779851a13453b36",
+    "sanitized_initialization_commit": "03d5898",
+    "calendar_chunking_commit": "373ba99",
+    "quota_classification_commit": "0fd3d3c1102f4ab303b022292b9dc4a13305c1fd"
+  },
+  "preflight_artifact_generated": true,
+  "full_market_data_files_generated": false,
+  "production_ready": false,
+  "research_conclusion": "not production ready",
+  "next_required_action": "OPERATOR_RESTORE_OR_INCREASE_RQDATA_QUERY_QUOTA",
+  "resume_step_after_quota_restore": "RERUN_RQDATA_FULL_MARKET_PRODUCTION_PREFLIGHT"
+}

@@ -2,12 +2,18 @@
 
 from __future__ import annotations
 
+import hashlib
 import math
 from copy import deepcopy
 from dataclasses import FrozenInstanceError
 
+import pandas as pd
 import pytest
 
+from backend.amr.bp_valuation_adapter import (
+    adapt_bp_valuation_rows,
+    bind_bp_valuation_to_path_b_records,
+)
 from backend.amr.financial_mvp_batch import build_mvp_financial_batches
 from backend.amr.financial_preprocessing import (
     MAD_POLICY_VERSION,
@@ -34,16 +40,19 @@ from tests.fixtures.synthetic_financial_preprocessing_cases import (
 def _prepare(records, *, minimum=2, future_labels=None):
     return prepare_financial_formula_inputs(
         records,
-        configuration=FinancialPreprocessingConfig(
-            minimum_cross_section_size=minimum
-        ),
+        configuration=FinancialPreprocessingConfig(minimum_cross_section_size=minimum),
         future_labels=future_labels,
     )
 
 
 def _error_codes(result):
+    return {issue.code for issue in result.preprocessing_audit.errors}
+
+
+def _non_financial_sector_types(result):
     return {
-        issue.code for issue in result.preprocessing_audit.errors
+        (item.evaluation_date, item.code): "NON_FINANCIAL"
+        for item in result.prepared_inputs
     }
 
 
@@ -61,10 +70,7 @@ class _ExplodingFutureLabels:
 class TestFrozenContract:
     def test_versions_are_frozen(self):
         assert PREPROCESSING_SCHEMA_VERSION == "FinancialPreprocessing-v1.0"
-        assert (
-            PREPROCESSING_AUDIT_SCHEMA_VERSION
-            == "FinancialPreprocessingAudit-v1.0"
-        )
+        assert PREPROCESSING_AUDIT_SCHEMA_VERSION == "FinancialPreprocessingAudit-v1.0"
         assert PREPROCESSING_HASH_CONTRACT_VERSION == "FIN-R2-PREP-HASH-v1.0"
         assert PREPROCESSING_POLICY_VERSION == "FIN-R2-PREP-POLICY-v1.0"
         assert MAD_POLICY_VERSION == "FIN-R2-PREP-MAD-v1.0"
@@ -130,13 +136,15 @@ class TestFinancialStatementPreparation:
         result = _prepare([make_annual_preprocessing_record()])
         assert not result.preprocessing_audit.errors
         assert (
-            result.get("2024-04-01", "SYNPREP001", "ROE")
-            .formula_inputs["parent_net_profit_ttm"]
+            result.get("2024-04-01", "SYNPREP001", "ROE").formula_inputs[
+                "parent_net_profit_ttm"
+            ]
             == 20.0
         )
         assert (
-            result.get("2024-04-01", "SYNPREP001", "OCF_NP")
-            .formula_inputs["operating_cash_flow_ttm"]
+            result.get("2024-04-01", "SYNPREP001", "OCF_NP").formula_inputs[
+                "operating_cash_flow_ttm"
+            ]
             == 30.0
         )
 
@@ -172,56 +180,36 @@ class TestFinancialStatementPreparation:
             ({"parent_net_profit_ttm": 0.0}, "OCF_NP"),
         ],
     )
-    def test_nonpositive_denominators_are_blocked(
-        self, overrides, factor_id
-    ):
+    def test_nonpositive_denominators_are_blocked(self, overrides, factor_id):
         result = _prepare([make_preprocessing_record(**overrides)])
         assert (
             PreprocessingErrorCode.NONPOSITIVE_FORMULA_DENOMINATOR.value
             in _error_codes(result)
         )
         assert any(
-            factor_id in issue.message
-            for issue in result.preprocessing_audit.errors
+            factor_id in issue.message for issue in result.preprocessing_audit.errors
         )
 
     def test_negative_numerator_is_not_silently_removed(self):
-        record = make_preprocessing_record(
-            operating_cash_flow_ttm=-10.0
-        )
+        record = make_preprocessing_record(operating_cash_flow_ttm=-10.0)
         result = _prepare([record])
         assert not result.preprocessing_audit.errors
         assert (
-            result.get("2024-01-08", "SYNPREP001", "OCF_NP")
-            .raw_pit_factor_value
+            result.get("2024-01-08", "SYNPREP001", "OCF_NP").raw_pit_factor_value
             == -0.5
         )
 
     def test_market_cap_is_consumed_as_pit_input(self):
-        low = _prepare(
-            [make_preprocessing_record(market_cap=100.0)]
-        )
-        high = _prepare(
-            [make_preprocessing_record(market_cap=400.0)]
-        )
-        assert (
-            low.get("2024-01-08", "SYNPREP001", "BP")
-            .raw_pit_factor_value
-            == 1.1
-        )
-        assert (
-            high.get("2024-01-08", "SYNPREP001", "BP")
-            .raw_pit_factor_value
-            == 0.275
-        )
+        low = _prepare([make_preprocessing_record(market_cap=100.0)])
+        high = _prepare([make_preprocessing_record(market_cap=400.0)])
+        assert low.get("2024-01-08", "SYNPREP001", "BP").raw_pit_factor_value == 1.1
+        assert high.get("2024-01-08", "SYNPREP001", "BP").raw_pit_factor_value == 0.275
 
 
 class TestMADPreprocessing:
     def test_mad_is_applied_per_evaluation_date_and_factor(self):
         result = _prepare(make_mad_cross_section(), minimum=5)
-        roe_audit = next(
-            item for item in result.mad_audits if item.factor_id == "ROE"
-        )
+        roe_audit = next(item for item in result.mad_audits if item.factor_id == "ROE")
         assert roe_audit.status == MADStatus.APPLIED.value
         assert roe_audit.median == pytest.approx(0.12)
         assert roe_audit.raw_mad == pytest.approx(0.01)
@@ -235,18 +223,13 @@ class TestMADPreprocessing:
 
     def test_mad_zero_returns_raw_and_records_warning(self):
         result = _prepare(make_mad_cross_section(), minimum=5)
-        audit = next(
-            item for item in result.mad_audits if item.factor_id == "OCF_NP"
-        )
+        audit = next(item for item in result.mad_audits if item.factor_id == "OCF_NP")
         assert audit.status == MADStatus.MAD_ZERO_NO_WINSOR.value
         assert audit.raw_mad == 0
         assert audit.clipped_count == 0
-        assert (
-            PreprocessingErrorCode.MAD_ZERO_NO_WINSOR.value
-            in {
-                item.code for item in result.preprocessing_audit.warnings
-            }
-        )
+        assert PreprocessingErrorCode.MAD_ZERO_NO_WINSOR.value in {
+            item.code for item in result.preprocessing_audit.warnings
+        }
 
     def test_insufficient_cross_section_returns_raw_and_warns(self):
         result = _prepare([make_preprocessing_record()], minimum=5)
@@ -272,15 +255,16 @@ class TestMADPreprocessing:
         result = _prepare(make_mad_cross_section(), minimum=5)
         record = next(
             item
-            for item in result.to_mvp_path_b_records()
-            if item["code"] == "SYNPREP005"
-            and item["factor_id"] == "ROE"
+            for item in result.to_mvp_path_b_records(
+                sector_types=_non_financial_sector_types(result)
+            )
+            if item["code"] == "SYNPREP005" and item["factor_id"] == "ROE"
         )
         assert record["formula_inputs"]["parent_net_profit_ttm"] == 100.0
         assert "factor_value" not in record
-        assert result.get(
-            "2024-01-08", "SYNPREP005", "ROE"
-        ).evaluation_factor_value < 1.0
+        assert (
+            result.get("2024-01-08", "SYNPREP005", "ROE").evaluation_factor_value < 1.0
+        )
 
 
 class TestValidationAndIsolation:
@@ -315,9 +299,8 @@ class TestValidationAndIsolation:
     def test_duplicate_preparation_key_blocks(self):
         record = make_preprocessing_record()
         result = _prepare([record, deepcopy(record)])
-        assert (
-            PreprocessingErrorCode.DUPLICATE_PREPARATION_KEY.value
-            in _error_codes(result)
+        assert PreprocessingErrorCode.DUPLICATE_PREPARATION_KEY.value in _error_codes(
+            result
         )
 
     @pytest.mark.parametrize(
@@ -338,18 +321,16 @@ class TestValidationAndIsolation:
         record = make_preprocessing_record()
         record[field_name] = math.inf
         result = _prepare([record])
-        assert (
-            PreprocessingErrorCode.NONFINITE_FINANCIAL_INPUT.value
-            in _error_codes(result)
+        assert PreprocessingErrorCode.NONFINITE_FINANCIAL_INPUT.value in _error_codes(
+            result
         )
 
     def test_missing_interim_history_blocks(self):
         record = make_preprocessing_record()
         record.pop("prior_fy_parent_net_profit")
         result = _prepare([record])
-        assert (
-            PreprocessingErrorCode.MISSING_REQUIRED_FIELD.value
-            in _error_codes(result)
+        assert PreprocessingErrorCode.MISSING_REQUIRED_FIELD.value in _error_codes(
+            result
         )
 
     def test_annual_record_does_not_require_interim_ttm_history(self):
@@ -359,9 +340,8 @@ class TestValidationAndIsolation:
     def test_unsupported_report_period_blocks(self):
         record = make_preprocessing_record(report_period="2023-05-31")
         result = _prepare([record])
-        assert (
-            PreprocessingErrorCode.UNSUPPORTED_REPORT_PERIOD.value
-            in _error_codes(result)
+        assert PreprocessingErrorCode.UNSUPPORTED_REPORT_PERIOD.value in _error_codes(
+            result
         )
 
     def test_future_effective_date_blocks(self):
@@ -370,64 +350,49 @@ class TestValidationAndIsolation:
             evaluation_date="2024-01-08",
         )
         result = _prepare([record])
-        assert (
-            PreprocessingErrorCode.INVALID_DATE_ORDER.value
-            in _error_codes(result)
-        )
+        assert PreprocessingErrorCode.INVALID_DATE_ORDER.value in _error_codes(result)
 
     def test_invalid_snapshot_blocks(self):
         record = make_preprocessing_record()
         record["source_snapshot_fingerprint"] = "not-a-hash"
         result = _prepare([record])
-        assert (
-            PreprocessingErrorCode.INVALID_SOURCE_SNAPSHOT.value
-            in _error_codes(result)
+        assert PreprocessingErrorCode.INVALID_SOURCE_SNAPSHOT.value in _error_codes(
+            result
         )
 
     def test_missing_input_references_blocks(self):
         record = make_preprocessing_record()
         record["input_record_references"] = []
         result = _prepare([record])
-        assert (
-            PreprocessingErrorCode.MISSING_INPUT_REFERENCE.value
-            in _error_codes(result)
+        assert PreprocessingErrorCode.MISSING_INPUT_REFERENCE.value in _error_codes(
+            result
         )
 
     def test_string_input_references_blocks(self):
         record = make_preprocessing_record()
         record["input_record_references"] = "not-an-iterable-of-ids"
         result = _prepare([record])
-        assert (
-            PreprocessingErrorCode.MISSING_INPUT_REFERENCE.value
-            in _error_codes(result)
+        assert PreprocessingErrorCode.MISSING_INPUT_REFERENCE.value in _error_codes(
+            result
         )
 
     def test_non_synthetic_record_blocks(self):
         record = make_preprocessing_record()
         record["synthetic_test_only"] = False
         result = _prepare([record])
-        assert (
-            PreprocessingErrorCode.NON_SYNTHETIC_INPUT.value
-            in _error_codes(result)
-        )
+        assert PreprocessingErrorCode.NON_SYNTHETIC_INPUT.value in _error_codes(result)
 
     def test_nonmapping_record_blocks(self):
         result = _prepare(["invalid"])
-        assert (
-            PreprocessingErrorCode.INVALID_INPUT_RECORD.value
-            in _error_codes(result)
-        )
+        assert PreprocessingErrorCode.INVALID_INPUT_RECORD.value in _error_codes(result)
 
     def test_invalid_input_container_blocks(self):
         result = prepare_financial_formula_inputs(
             None,
-            configuration=FinancialPreprocessingConfig(
-                minimum_cross_section_size=2
-            ),
+            configuration=FinancialPreprocessingConfig(minimum_cross_section_size=2),
         )
-        assert (
-            PreprocessingErrorCode.INVALID_INPUT_CONTAINER.value
-            in _error_codes(result)
+        assert PreprocessingErrorCode.INVALID_INPUT_CONTAINER.value in _error_codes(
+            result
         )
 
     def test_invalid_configuration_object_blocks(self):
@@ -435,9 +400,8 @@ class TestValidationAndIsolation:
             [make_preprocessing_record()],
             configuration="invalid",
         )
-        assert (
-            PreprocessingErrorCode.INVALID_CONFIGURATION.value
-            in _error_codes(result)
+        assert PreprocessingErrorCode.INVALID_CONFIGURATION.value in _error_codes(
+            result
         )
 
 
@@ -472,12 +436,8 @@ class TestAuditAndIntegration:
             result.get("2024-01-08", "MISSING", "ROE")
 
     def test_output_fingerprint_changes_with_financial_input(self):
-        first = _prepare(
-            [make_preprocessing_record(parent_net_profit_ttm=20.0)]
-        )
-        second = _prepare(
-            [make_preprocessing_record(parent_net_profit_ttm=21.0)]
-        )
+        first = _prepare([make_preprocessing_record(parent_net_profit_ttm=20.0)])
+        second = _prepare([make_preprocessing_record(parent_net_profit_ttm=21.0)])
         assert (
             first.preprocessing_audit.output_fingerprint
             != second.preprocessing_audit.output_fingerprint
@@ -494,10 +454,37 @@ class TestAuditAndIntegration:
         ) = make_mvp_compatible_preprocessing_case()
         prep = _prepare([record], minimum=2)
         assert not prep.preprocessing_audit.errors
+        path_b_records = prep.to_mvp_path_b_records(
+            sector_types=_non_financial_sector_types(prep),
+            source_snapshot_fingerprints=snapshots,
+        )
+        bp = next(item for item in path_b_records if item["factor_id"] == "BP")
+        valuation = adapt_bp_valuation_rows(
+            pd.DataFrame(
+                [
+                    {
+                        "evaluation_date": bp["evaluation_date"],
+                        "provider_date": bp["evaluation_date"],
+                        "code": bp["code"],
+                        "factor_id": "BP",
+                        "market_cap": bp["formula_inputs"]["market_cap"],
+                        "provider": "RQData",
+                        "provider_endpoint": "rqdatac.get_factor",
+                        "provider_field": "book_to_market_ratio_lf",
+                        "source_record_reference": "synthetic-bp-valuation",
+                        "source_input_hash": hashlib.sha256(
+                            b"synthetic-bp-valuation"
+                        ).hexdigest(),
+                        "valuation_policy_version": "1.0",
+                    }
+                ]
+            )
+        )
+        bound_records = bind_bp_valuation_to_path_b_records(
+            path_b_records, valuation
+        )
         mvp = build_mvp_financial_batches(
-            prep.to_mvp_path_b_records(
-                source_snapshot_fingerprints=snapshots
-            ),
+            bound_records,
             lineage_references=lineage_references,
             sample_references=sample_references,
             configuration=mvp_configuration,
@@ -505,8 +492,6 @@ class TestAuditAndIntegration:
         )
         assert mvp.financial_batch_audit.gate_status == "ready"
         assert [
-            mvp.get_batch(factor_id)
-            .get_frame()
-            .iloc[0]["factor_value"]
+            mvp.get_batch(factor_id).get_frame().iloc[0]["factor_value"]
             for factor_id in ("ROE", "BP", "OCF_NP")
         ] == [0.2, 0.25, 1.5]

@@ -143,9 +143,9 @@ class TestFrozenFin24Policy:
         assert tuple(
             item.content_hash for item in get_fin24_combination_definitions()
         ) == (
-            "c931f8365fa7a93a5b0477e2383be9b9e793b89030576df7ba8bd4fda741d9d8",
-            "18ce4de1600c79ca1d3087d7c5145cd700a904051f5079f04982cf676125ff36",
-            "9704403fac98513ec0171ec0027131ced341b5c3ff08941eee61595ee439bc48",
+            "1e6a4d52782fe6aebbea8f9705235bf808e6ee11a0b66301da8c00d962dd0a42",
+            "23fc5c8e945d2d5a9e37c43a736d69a83b6ae89833884f55a2009ba90c709fac",
+            "cc508aaaac2bc70cfd1559c645dd42957fee7db09e160192f63aebe7746f553e",
         )
 
     def test_configuration_freezes_construction_semantics(self):

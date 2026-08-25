@@ -7,22 +7,21 @@ import sys
 import types
 from dataclasses import FrozenInstanceError, replace
 from pathlib import Path
+from typing import ClassVar
 
+import pandas as pd
 import pytest
-
 
 if "backend.amr" not in sys.modules:
     package = types.ModuleType("backend.amr")
-    package.__path__ = [
-        str(Path(__file__).resolve().parents[1] / "backend" / "amr")
-    ]
+    package.__path__ = [str(Path(__file__).resolve().parents[1] / "backend" / "amr")]
     sys.modules["backend.amr"] = package
 
-from backend.amr.evaluation_input_contract import FinancialBatch  # noqa: E402
-from backend.amr.financial_lineage import (  # noqa: E402
+from backend.amr.evaluation_input_contract import FinancialBatch
+from backend.amr.financial_lineage import (
     recompute_lineage_content_hash,
 )
-from backend.amr.financial_mvp_batch import (  # noqa: E402
+from backend.amr.financial_mvp_batch import (
     FORMULA_REGISTRY,
     FORMULA_REGISTRY_VERSION,
     HASH_CONTRACT_VERSION,
@@ -32,7 +31,6 @@ from backend.amr.financial_mvp_batch import (  # noqa: E402
     PUBLIC_BATCH_SORT_FIELDS,
     SUPPORTED_FACTOR_IDS,
     MVPBatchConfig,
-    MVPBatchErrorCode,
     MVPBatchLookupError,
     build_mvp_financial_batches,
     calculate_registered_mvp_formula,
@@ -40,12 +38,13 @@ from backend.amr.financial_mvp_batch import (  # noqa: E402
     formula_definition_for,
     recompute_observation_content_hash,
 )
-from backend.amr.financial_sample import (  # noqa: E402
+from backend.amr.financial_sample import (
     compute_sample_fingerprint,
     recompute_sample_content_hash,
 )
-from tests.fixtures.synthetic_financial_mvp_batch_cases import (  # noqa: E402
+from tests.fixtures.synthetic_financial_mvp_batch_cases import (
     CODE,
+    EVALUATION_DATE,
     EXPECTED_FACTOR_VALUES,
     FORMULA_INPUTS,
     make_mvp_batch_inputs,
@@ -65,36 +64,58 @@ def _build(
     configuration=None,
     future_labels=None,
 ):
-    source_records, source_lineages, source_samples, source_config, labels = (
-        _inputs(path_type)
+    source_records, source_lineages, source_samples, source_config, labels = _inputs(
+        path_type
     )
     return build_mvp_financial_batches(
         records if records is not None else source_records,
         lineage_references=(
-            lineage_references
-            if lineage_references is not None
-            else source_lineages
+            lineage_references if lineage_references is not None else source_lineages
         ),
         sample_references=(
-            sample_references
-            if sample_references is not None
-            else source_samples
+            sample_references if sample_references is not None else source_samples
         ),
-        configuration=(
-            configuration
-            if configuration is not None
-            else source_config
-        ),
-        future_labels=(
-            future_labels if future_labels is not None else labels
-        ),
+        configuration=(configuration if configuration is not None else source_config),
+        future_labels=(future_labels if future_labels is not None else labels),
     )
 
 
 def _codes(result):
-    return {
-        item.code for item in result.financial_batch_audit.errors
+    return {item.code for item in result.financial_batch_audit.errors}
+
+
+def _warning_codes(result):
+    return {item.code for item in result.financial_batch_audit.warnings}
+
+
+class _ExposureBatchStub:
+    schema_version = "ExposureBatch-v1"
+    source = "platform-exposure-service"
+    version = "synthetic-exposure-v1"
+    provenance: ClassVar[dict[str, str]] = {
+        "source": source,
+        "data_version": version,
+        "industry_mapping_version": "synthetic-sector-map-v1",
+        "snapshot_hash": "b" * 64,
     }
+
+    def __init__(self, *, sector_type="NON_FINANCIAL", market_cap=200.0):
+        self._frame = pd.DataFrame(
+            [
+                {
+                    "security_id": CODE,
+                    "start_date": "2020-01-01",
+                    "cancel_date": "2025-01-01",
+                    "industry_code": sector_type,
+                    "industry_type": sector_type,
+                    "total_market_cap": market_cap,
+                    "market_cap_date": EVALUATION_DATE,
+                }
+            ]
+        )
+
+    def get_frame(self):
+        return self._frame.copy(deep=True)
 
 
 class TestFrozenContractAndRegistry:
@@ -102,9 +123,7 @@ class TestFrozenContractAndRegistry:
         assert MVP_BATCH_SCHEMA_VERSION == "FinancialMVPBatch-v1.0"
         assert MVP_AUDIT_SCHEMA_VERSION == "FinancialBatchAudit-v1.0"
         assert HASH_CONTRACT_VERSION == "FIN-MVP-DATA-HASH-v1.0"
-        assert FORMULA_REGISTRY_VERSION == (
-            "FIN-MVP-FORMULA-REGISTRY-v1.0"
-        )
+        assert FORMULA_REGISTRY_VERSION == ("FIN-MVP-FORMULA-REGISTRY-v2.0")
         assert SUPPORTED_FACTOR_IDS == ("ROE", "BP", "OCF_NP")
         assert INTEGRATION_KEY_FIELDS == (
             "evaluation_date",
@@ -137,11 +156,24 @@ class TestFrozenContractAndRegistry:
             formula_definition_for("GPM")
 
     def test_configuration_is_frozen_and_version_guarded(self):
-        config = MVPBatchConfig()
+        config = MVPBatchConfig(
+            universe="ALL_A_SHARE",
+            universe_version="test-all-a-v1",
+            universe_filter="listed_and_pit_eligible",
+        )
         with pytest.raises(FrozenInstanceError):
             config.batch_version = "changed"
         with pytest.raises(ValueError):
-            MVPBatchConfig(formula_registry_version="unknown")
+            MVPBatchConfig(
+                universe="ALL_A_SHARE",
+                universe_version="test-all-a-v1",
+                universe_filter="listed_and_pit_eligible",
+                formula_registry_version="unknown",
+            )
+
+    def test_universe_scope_is_explicit(self):
+        with pytest.raises(TypeError):
+            MVPBatchConfig()
 
 
 class TestPathA:
@@ -203,9 +235,7 @@ class TestPathA:
         result = _build("A", records=records)
         assert "INVALID_FACTOR_VALUE" in _codes(result)
 
-    @pytest.mark.parametrize(
-        "value", [float("nan"), float("inf"), float("-inf")]
-    )
+    @pytest.mark.parametrize("value", [float("nan"), float("inf"), float("-inf")])
     def test_nonfinite_path_a_value_blocks(self, value):
         records, _, _, _, _ = _inputs("A")
         records[0]["factor_value"] = value
@@ -219,9 +249,16 @@ class TestPathB:
         [("ROE", 0.2), ("BP", 0.25), ("OCF_NP", 1.5)],
     )
     def test_fixed_formula_cases(self, factor_id, expected):
-        assert calculate_registered_mvp_formula(
-            factor_id, FORMULA_INPUTS[factor_id]
-        ) == expected
+        assert (
+            calculate_registered_mvp_formula(
+                factor_id,
+                FORMULA_INPUTS[factor_id],
+                sector_type="NON_FINANCIAL",
+                market_cap_as_of=(EVALUATION_DATE if factor_id == "BP" else None),
+                evaluation_date=EVALUATION_DATE,
+            )
+            == expected
+        )
 
     def test_three_registered_formulas_enter_same_public_semantics(self):
         path_a = _build("A")
@@ -230,9 +267,71 @@ class TestPathB:
         assert path_b.financial_batch_audit.path_a_count == 0
         assert path_b.financial_batch_audit.path_b_count == 3
         for factor_id in SUPPORTED_FACTOR_IDS:
-            assert path_a.get_batch(factor_id).get_frame().equals(
-                path_b.get_batch(factor_id).get_frame()
+            assert (
+                path_a.get_batch(factor_id)
+                .get_frame()
+                .equals(path_b.get_batch(factor_id).get_frame())
             )
+
+    def test_missing_sector_classification_blocks_path_b(self):
+        records, _, _, _, _ = _inputs("B")
+        records[0].pop("sector_type")
+        result = _build("B", records=records)
+        assert "SECTOR_CLASSIFICATION_MISSING" in _codes(result)
+
+    def test_financial_sector_ocf_np_is_not_calculated(self):
+        records, _, _, _, _ = _inputs("B")
+        ocf_np = next(item for item in records if item["factor_id"] == "OCF_NP")
+        ocf_np["sector_type"] = "BANK"
+        result = _build("B", records=records)
+        assert result.financial_batch_audit.gate_status == "ready"
+        assert "FORMULA_NOT_APPLICABLE" in _warning_codes(result)
+        assert "FORMULA_NOT_APPLICABLE" not in _codes(result)
+        assert result.financial_batch_audit.successful_count == 2
+        assert result.financial_batch_audit.not_applicable_count == 1
+        assert result.financial_batch_audit.missing_count == 0
+        assert result.financial_batch_audit.failure_count == 0
+        assert result.get_batch("OCF_NP").get_frame().empty
+        assert not any(
+            item.factor_id == "OCF_NP"
+            for item in result.observation_reference.records
+        )
+
+    def test_public_exposure_batch_routes_mixed_formula_applicability(self):
+        records, lineages, samples, config, labels = _inputs("B")
+        for record in records:
+            record.pop("sector_type", None)
+        result = build_mvp_financial_batches(
+            records,
+            lineage_references=lineages,
+            sample_references=samples,
+            configuration=config,
+            future_labels=labels,
+            exposure_batch=_ExposureBatchStub(sector_type="BANK"),
+        )
+        assert result.financial_batch_audit.gate_status == "ready"
+        assert result.financial_batch_audit.successful_count == 2
+        assert result.financial_batch_audit.not_applicable_count == 1
+        assert "FORMULA_NOT_APPLICABLE" in _warning_codes(result)
+        for batch in result.batches:
+            provenance = batch.provenance
+            assert provenance["exposure_contract_version"] == "ExposureBatch-v1"
+            assert provenance["exposure_data_version"] == "synthetic-exposure-v1"
+            assert provenance["industry_mapping_version"] == "synthetic-sector-map-v1"
+            assert provenance["exposure_snapshot_hash"] == "b" * 64
+
+    def test_public_exposure_market_cap_mismatch_blocks(self):
+        records, lineages, samples, config, labels = _inputs("B")
+        result = build_mvp_financial_batches(
+            records,
+            lineage_references=lineages,
+            sample_references=samples,
+            configuration=config,
+            future_labels=labels,
+            exposure_batch=_ExposureBatchStub(market_cap=201.0),
+        )
+        assert result.financial_batch_audit.gate_status == "blocked"
+        assert "EXPOSURE_VALUE_MISMATCH" in _codes(result)
 
     def test_formula_version_and_inputs_are_retraceable(self):
         result = _build("B")
@@ -250,9 +349,7 @@ class TestPathB:
         reverse_values = dict(reversed(list(values.items())))
         assert compute_formula_input_hash(
             "ROE", values, ("b", "a")
-        ) == compute_formula_input_hash(
-            "ROE", reverse_values, ("a", "b")
-        )
+        ) == compute_formula_input_hash("ROE", reverse_values, ("a", "b"))
 
     @pytest.mark.parametrize(
         "field_name",
@@ -260,9 +357,9 @@ class TestPathB:
     )
     def test_missing_formula_reference_blocks(self, field_name):
         records, _, _, _, _ = _inputs("B")
-        records[0][field_name] = "" if field_name != (
-            "formula_input_references"
-        ) else ()
+        records[0][field_name] = (
+            "" if field_name != ("formula_input_references") else ()
+        )
         result = _build("B", records=records)
         assert {
             "PATH_B_FORMULA_REFERENCE_MISSING",
@@ -282,9 +379,7 @@ class TestPathB:
         assert "FORMULA_INPUT_REFERENCE_MISSING" in _codes(result)
 
     @pytest.mark.parametrize("denominator", [0.0, -1.0])
-    def test_denominator_anomaly_is_deferred_to_r2_prep(
-        self, denominator
-    ):
+    def test_denominator_anomaly_is_deferred_to_r2_prep(self, denominator):
         records, _, _, _, _ = _inputs("B")
         records[0]["formula_inputs"]["average_parent_equity"] = denominator
         result = _build("B", records=records)
@@ -370,9 +465,7 @@ class TestUpstreamReferencesAndConflicts:
     def test_tampered_lineage_content_blocks(self):
         records, lineages, samples, config, labels = _inputs("A")
         reference = lineages["ROE"]
-        changed = replace(
-            reference.records[0], source_provider="tampered"
-        )
+        changed = replace(reference.records[0], source_provider="tampered")
         lineages["ROE"] = replace(reference, records=(changed,))
         result = build_mvp_financial_batches(
             records,
@@ -420,9 +513,7 @@ class TestUpstreamReferencesAndConflicts:
 
     def test_missing_one_approved_factor_blocks(self):
         records, _, _, _, _ = _inputs("A")
-        records = [
-            item for item in records if item["factor_id"] != "OCF_NP"
-        ]
+        records = [item for item in records if item["factor_id"] != "OCF_NP"]
         result = _build("A", records=records)
         assert "MVP_FACTOR_COVERAGE_INCOMPLETE" in _codes(result)
 
@@ -490,31 +581,23 @@ class TestUpstreamReferencesAndConflicts:
 class TestDeterminismLabelsAndSafety:
     def test_batch_fingerprints_match_public_provenance(self):
         result = _build("A")
-        fingerprints = dict(
-            result.financial_batch_audit.batch_fingerprints
-        )
+        fingerprints = dict(result.financial_batch_audit.batch_fingerprints)
         for batch in result.batches:
-            assert batch.provenance["batch_fingerprint"] == (
-                fingerprints[batch.factor_id]
+            assert (
+                batch.provenance["batch_fingerprint"] == (fingerprints[batch.factor_id])
             )
             assert batch.provenance["future_labels_consumed"] is False
 
     def test_observation_reference_lookup_and_hash(self):
         result = _build("A")
-        record = result.observation_reference.lookup(
-            "2024-01-08", CODE, "ROE"
-        )
+        record = result.observation_reference.lookup("2024-01-08", CODE, "ROE")
         assert record.factor_value == EXPECTED_FACTOR_VALUES["ROE"]
-        assert record.content_hash == recompute_observation_content_hash(
-            record
-        )
+        assert record.content_hash == recompute_observation_content_hash(record)
 
     def test_lookup_failures_have_stable_codes(self):
         result = _build("A")
         with pytest.raises(MVPBatchLookupError) as exc_info:
-            result.observation_reference.lookup(
-                "2024-01-08", "MISSING", "ROE"
-            )
+            result.observation_reference.lookup("2024-01-08", "MISSING", "ROE")
         assert exc_info.value.code == "LINEAGE_REFERENCE_MISSING"
         with pytest.raises(MVPBatchLookupError):
             result.get_batch("GPM")
@@ -530,9 +613,7 @@ class TestDeterminismLabelsAndSafety:
     def test_same_input_repeats_identically(self):
         first = _build("B")
         second = _build("B")
-        assert first.to_dict(include_rows=True) == (
-            second.to_dict(include_rows=True)
-        )
+        assert first.to_dict(include_rows=True) == (second.to_dict(include_rows=True))
 
     def test_deleting_or_perturbing_future_labels_changes_nothing(self):
         baseline = _build("A")
@@ -608,8 +689,7 @@ class TestDeterminismLabelsAndSafety:
         calls = {
             node.func.id
             for node in ast.walk(tree)
-            if isinstance(node, ast.Call)
-            and isinstance(node.func, ast.Name)
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
         }
         imports = {
             alias.name.split(".")[0]
@@ -618,10 +698,13 @@ class TestDeterminismLabelsAndSafety:
             for alias in node.names
         }
         assert not {"eval", "exec", "compile"} & calls
-        assert not {
-            "requests",
-            "httpx",
-            "socket",
-            "supabase",
-            "sqlalchemy",
-        } & imports
+        assert (
+            not {
+                "requests",
+                "httpx",
+                "socket",
+                "supabase",
+                "sqlalchemy",
+            }
+            & imports
+        )

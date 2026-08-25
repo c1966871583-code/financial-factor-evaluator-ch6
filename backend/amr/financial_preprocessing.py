@@ -12,16 +12,16 @@ import hashlib
 import json
 import math
 import statistics
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, replace
 from datetime import date
 from enum import Enum
-from typing import Any, Iterable, Mapping
+from typing import Any
 
 from backend.amr.financial_mvp_batch import (
     SUPPORTED_FACTOR_IDS,
     formula_definition_for,
 )
-
 
 PREPROCESSING_SCHEMA_VERSION = "FinancialPreprocessing-v1.0"
 PREPROCESSING_AUDIT_SCHEMA_VERSION = "FinancialPreprocessingAudit-v1.0"
@@ -115,17 +115,11 @@ class FinancialPreprocessingConfig:
         if self.mad_scale != MAD_SCALE:
             raise ValueError(f"mad_scale must be frozen at {MAD_SCALE}")
         if self.schema_version != PREPROCESSING_SCHEMA_VERSION:
-            raise ValueError(
-                f"schema_version must be {PREPROCESSING_SCHEMA_VERSION}"
-            )
+            raise ValueError(f"schema_version must be {PREPROCESSING_SCHEMA_VERSION}")
         if self.policy_version != PREPROCESSING_POLICY_VERSION:
-            raise ValueError(
-                f"policy_version must be {PREPROCESSING_POLICY_VERSION}"
-            )
+            raise ValueError(f"policy_version must be {PREPROCESSING_POLICY_VERSION}")
         if self.mad_policy_version != MAD_POLICY_VERSION:
-            raise ValueError(
-                f"mad_policy_version must be {MAD_POLICY_VERSION}"
-            )
+            raise ValueError(f"mad_policy_version must be {MAD_POLICY_VERSION}")
         if self.synthetic_test_only is not True:
             raise ValueError("FIN-R2-PREP is authorized for synthetic input only")
 
@@ -326,6 +320,7 @@ class FinancialPreprocessingResult:
     def to_mvp_path_b_records(
         self,
         *,
+        sector_types: Mapping[tuple[str, str], str],
         source_snapshot_fingerprints: Mapping[str, str] | None = None,
     ) -> list[dict[str, Any]]:
         """Return fresh dictionaries accepted by FIN-MVP-DATA path B.
@@ -335,12 +330,13 @@ class FinancialPreprocessingResult:
         smuggled into the public ``FinancialBatch``.
         """
 
+        if not isinstance(sector_types, Mapping):
+            raise TypeError("sector_types must be a PIT exposure mapping")
+
         snapshot_bindings: dict[str, str] = {}
         if source_snapshot_fingerprints is not None:
             if not isinstance(source_snapshot_fingerprints, Mapping):
-                raise TypeError(
-                    "source_snapshot_fingerprints must be a mapping"
-                )
+                raise TypeError("source_snapshot_fingerprints must be a mapping")
             if set(source_snapshot_fingerprints) != set(SUPPORTED_FACTOR_IDS):
                 raise ValueError(
                     "source_snapshot_fingerprints must cover exactly "
@@ -356,6 +352,11 @@ class FinancialPreprocessingResult:
         records: list[dict[str, Any]] = []
         for item in self.prepared_inputs:
             definition = formula_definition_for(item.factor_id)
+            sector_key = (item.evaluation_date, item.code)
+            if sector_key not in sector_types:
+                raise ValueError(
+                    "sector_types must contain every evaluation-date/code key"
+                )
             records.append(
                 {
                     "evaluation_date": item.evaluation_date,
@@ -365,12 +366,11 @@ class FinancialPreprocessingResult:
                     "publish_date": item.publish_date,
                     "effective_date": item.effective_date,
                     "path_type": "B",
+                    "sector_type": sector_types[sector_key],
                     "formula_id": definition.formula_id,
                     "formula_version": definition.formula_version,
                     "formula_inputs": item.formula_inputs,
-                    "formula_input_references": list(
-                        item.formula_input_references
-                    ),
+                    "formula_input_references": list(item.formula_input_references),
                     "source_snapshot_fingerprint": snapshot_bindings.get(
                         item.factor_id,
                         item.source_snapshot_fingerprint,
@@ -466,9 +466,7 @@ def prepare_financial_formula_inputs(
             item["effective_date"],
         )
     )
-    input_fingerprint = _versioned_hash(
-        "preprocessing_input", normalized
-    )
+    input_fingerprint = _versioned_hash("preprocessing_input", normalized)
     if errors:
         return _blocked_result(
             tuple(_deduplicate_issues(issues)),
@@ -490,9 +488,7 @@ def prepare_financial_formula_inputs(
             input_fingerprint=input_fingerprint,
         )
 
-    prepared, mad_audits, mad_issues = _apply_mad(
-        prepared, configuration
-    )
+    prepared, mad_audits, mad_issues = _apply_mad(prepared, configuration)
     issues.extend(mad_issues)
     prepared_tuple = tuple(sorted(prepared, key=_prepared_sort_key))
     mad_tuple = tuple(
@@ -536,18 +532,10 @@ def _normalize_record(
         return None
     try:
         code = _required_text(record.get("code"), "code")
-        evaluation_date = _date_iso(
-            record.get("evaluation_date"), "evaluation_date"
-        )
-        report_period = _date_iso(
-            record.get("report_period"), "report_period"
-        )
-        publish_date = _date_iso(
-            record.get("publish_date"), "publish_date"
-        )
-        effective_date = _date_iso(
-            record.get("effective_date"), "effective_date"
-        )
+        evaluation_date = _date_iso(record.get("evaluation_date"), "evaluation_date")
+        report_period = _date_iso(record.get("report_period"), "report_period")
+        publish_date = _date_iso(record.get("publish_date"), "publish_date")
+        effective_date = _date_iso(record.get("effective_date"), "effective_date")
     except (TypeError, ValueError) as exc:
         issues.append(
             _issue(
@@ -677,8 +665,7 @@ def _prepare_one_record(
     issues: list[PreprocessingIssue],
 ) -> list[PreparedFormulaInput]:
     record_key = (
-        f"{record['evaluation_date']}|{record['code']}|"
-        f"{record['report_period']}"
+        f"{record['evaluation_date']}|{record['code']}|{record['report_period']}"
     )
     annual = record["report_period"][5:] == _ANNUAL_REPORT_PERIOD
     if annual:
@@ -688,20 +675,15 @@ def _prepare_one_record(
         parent_net_profit_ttm = (
             record["parent_net_profit_ytd"]
             + record["prior_fy_parent_net_profit"]
-            - record[
-                "prior_year_same_period_parent_net_profit_ytd"
-            ]
+            - record["prior_year_same_period_parent_net_profit_ytd"]
         )
         operating_cash_flow_ttm = (
             record["operating_cash_flow_ytd"]
             + record["prior_fy_operating_cash_flow"]
-            - record[
-                "prior_year_same_period_operating_cash_flow_ytd"
-            ]
+            - record["prior_year_same_period_operating_cash_flow_ytd"]
         )
     average_parent_equity = (
-        record["parent_equity"]
-        + record["prior_year_same_period_parent_equity"]
+        record["parent_equity"] + record["prior_year_same_period_parent_equity"]
     ) / 2.0
     prepared_values = {
         "parent_net_profit_ttm": parent_net_profit_ttm,
@@ -771,15 +753,9 @@ def _prepare_one_record(
             "report_period": record["report_period"],
             "publish_date": record["publish_date"],
             "effective_date": record["effective_date"],
-            "formula_inputs_items": tuple(
-                sorted(formula_inputs.items())
-            ),
-            "formula_input_references": record[
-                "input_record_references"
-            ],
-            "source_snapshot_fingerprint": record[
-                "source_snapshot_fingerprint"
-            ],
+            "formula_inputs_items": tuple(sorted(formula_inputs.items())),
+            "formula_input_references": record["input_record_references"],
+            "source_snapshot_fingerprint": record["source_snapshot_fingerprint"],
             "preparation_input_hash": preparation_input_hash,
             "raw_pit_factor_value": raw_value,
             "evaluation_factor_value": raw_value,
@@ -803,9 +779,7 @@ def _apply_mad(
 ]:
     groups: dict[tuple[str, str], list[PreparedFormulaInput]] = {}
     for item in observations:
-        groups.setdefault(
-            (item.evaluation_date, item.factor_id), []
-        ).append(item)
+        groups.setdefault((item.evaluation_date, item.factor_id), []).append(item)
     output: list[PreparedFormulaInput] = []
     audits: list[MADCrossSectionAudit] = []
     issues: list[PreprocessingIssue] = []
@@ -815,10 +789,7 @@ def _apply_mad(
         values = [item.raw_pit_factor_value for item in group]
         input_fingerprint = _versioned_hash(
             "mad_input",
-            [
-                {"code": item.code, "value": item.raw_pit_factor_value}
-                for item in group
-            ],
+            [{"code": item.code, "value": item.raw_pit_factor_value} for item in group],
         )
         if len(values) < configuration.minimum_cross_section_size:
             status = MADStatus.SKIPPED_INSUFFICIENT
@@ -838,9 +809,7 @@ def _apply_mad(
         else:
             median_value = float(statistics.median(values))
             raw_mad = float(
-                statistics.median(
-                    [abs(value - median_value) for value in values]
-                )
+                statistics.median([abs(value - median_value) for value in values])
             )
             scaled_mad = raw_mad * configuration.mad_scale
             if raw_mad == 0:
@@ -858,17 +827,9 @@ def _apply_mad(
                 )
             else:
                 status = MADStatus.APPLIED
-                lower = (
-                    median_value
-                    - configuration.mad_threshold * scaled_mad
-                )
-                upper = (
-                    median_value
-                    + configuration.mad_threshold * scaled_mad
-                )
-                transformed = [
-                    min(max(value, lower), upper) for value in values
-                ]
+                lower = median_value - configuration.mad_threshold * scaled_mad
+                upper = median_value + configuration.mad_threshold * scaled_mad
+                transformed = [min(max(value, lower), upper) for value in values]
                 clipped_count = sum(
                     original != changed
                     for original, changed in zip(values, transformed)
@@ -883,19 +844,14 @@ def _apply_mad(
                 },
                 "evaluation_factor_value": float(transformed_value),
                 "mad_status": status.value,
-                "was_winsorized":
-                    transformed_value != item.raw_pit_factor_value,
+                "was_winsorized": transformed_value != item.raw_pit_factor_value,
             }
             updated = replace(
                 item,
                 evaluation_factor_value=float(transformed_value),
                 mad_status=status.value,
-                was_winsorized=(
-                    transformed_value != item.raw_pit_factor_value
-                ),
-                content_hash=_versioned_hash(
-                    "prepared_formula_input", updated_fields
-                ),
+                was_winsorized=(transformed_value != item.raw_pit_factor_value),
+                content_hash=_versioned_hash("prepared_formula_input", updated_fields),
             )
             updated_group.append(updated)
         output.extend(updated_group)
@@ -916,8 +872,7 @@ def _apply_mad(
             "status": status.value,
             "input_count": len(group),
             "valid_count": len(values),
-            "minimum_cross_section_size":
-                configuration.minimum_cross_section_size,
+            "minimum_cross_section_size": configuration.minimum_cross_section_size,
             "median": median_value,
             "raw_mad": raw_mad,
             "scaled_mad": scaled_mad,
@@ -932,9 +887,7 @@ def _apply_mad(
         audits.append(
             MADCrossSectionAudit(
                 **audit_fields,
-                content_hash=_versioned_hash(
-                    "mad_cross_section_audit", audit_fields
-                ),
+                content_hash=_versioned_hash("mad_cross_section_audit", audit_fields),
             )
         )
     return output, audits, issues
@@ -997,9 +950,7 @@ def _blocked_result(
     input_fingerprint: str | None = None,
 ) -> FinancialPreprocessingResult:
     if configuration is None:
-        configuration = FinancialPreprocessingConfig(
-            minimum_cross_section_size=2
-        )
+        configuration = FinancialPreprocessingConfig(minimum_cross_section_size=2)
     audit = _build_audit(
         configuration=configuration,
         issues=issues,
@@ -1052,9 +1003,7 @@ def _errors(
     issues: Iterable[PreprocessingIssue],
 ) -> tuple[PreprocessingIssue, ...]:
     return tuple(
-        issue
-        for issue in issues
-        if issue.severity == PreprocessingSeverity.ERROR.value
+        issue for issue in issues if issue.severity == PreprocessingSeverity.ERROR.value
     )
 
 
@@ -1098,16 +1047,11 @@ def _reference_tuple(values: Any) -> tuple[str, ...]:
     try:
         result = tuple(
             sorted(
-                {
-                    _required_text(value, "input_record_reference")
-                    for value in values
-                }
+                {_required_text(value, "input_record_reference") for value in values}
             )
         )
     except TypeError as exc:
-        raise TypeError(
-            "input_record_references must be a non-empty iterable"
-        ) from exc
+        raise TypeError("input_record_references must be a non-empty iterable") from exc
     if not result:
         raise ValueError("input_record_references must not be empty")
     return result
@@ -1175,8 +1119,7 @@ def _canonical_json_value(value: Any) -> Any:
         return _canonical_json_value(value.to_dict())
     if hasattr(value, "__dataclass_fields__"):
         return {
-            key: _canonical_json_value(item)
-            for key, item in value.__dict__.items()
+            key: _canonical_json_value(item) for key, item in value.__dict__.items()
         }
     if isinstance(value, Mapping):
         return {

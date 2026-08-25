@@ -6,7 +6,7 @@
 
 摘要 Schema：`FactorEvaluationSummary-v1.0`
 
-哈希契约：`FIN-MVP-OUTPUT-HASH-v1.0`
+哈希契约：`FIN-MVP-OUTPUT-HASH-v2.0`
 
 ## 1. 定位
 
@@ -156,10 +156,10 @@ factor_evaluation_summaries = []
 
 ```text
 run_id =
-fin-mvp-output-68150aa59b7d17c779648f5b
+fin-mvp-output-fbb8fcb3a6a898af4338069e
 
 run_content_hash =
-fcae2be3e10b74444922c8e04f7b6ea909b7e8bea05b5eb2440bf9d17f8b5c0e
+d9927431743f09b99d7dc91a8aec4d7aa3095575eaa0723d611bab9aa1b67b3e
 ```
 
 三份摘要均为：
