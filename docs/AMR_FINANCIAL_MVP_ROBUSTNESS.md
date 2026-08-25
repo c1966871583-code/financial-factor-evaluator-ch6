@@ -6,7 +6,7 @@ Schema：`FinancialMVPRobustness-v1.0`
 
 审计 Schema：`FinancialMVPRobustnessAudit-v1.0`
 
-哈希契约：`FIN-MVP-ROBUST-HASH-v1.0`
+哈希契约：`FIN-MVP-ROBUST-HASH-v2.0`
 
 ## 1. 任务定位
 

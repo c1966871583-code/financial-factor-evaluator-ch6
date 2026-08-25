@@ -30,6 +30,7 @@ from backend.amr.financial_mvp_robustness import (
     RobustnessCellStatus,
     RobustnessConsistency,
     RobustnessDirection,
+    _hash,
     evaluate_financial_mvp_robustness,
 )
 from tests.fixtures.synthetic_financial_mvp_m_evaluation_cases import (
@@ -91,6 +92,13 @@ def _with_return_frame(source, frame, **overrides):
 
 
 class TestFrozenContract:
+    def test_v2_hash_normalizes_subprecision_float_noise(self):
+        left = {"value": 0.123456781, "zero": -0.0}
+        right = {"value": 0.123456782, "zero": 0.0}
+        assert _hash("float-parity", left) == _hash(
+            "float-parity", right
+        )
+
     def test_versions_and_matrix_are_frozen(self):
         assert ROBUSTNESS_SCHEMA_VERSION == (
             "FinancialMVPRobustness-v1.0"
@@ -105,7 +113,7 @@ class TestFrozenContract:
             "FinancialMVPFactorRobustness-v1.0"
         )
         assert ROBUSTNESS_HASH_CONTRACT_VERSION == (
-            "FIN-MVP-ROBUST-HASH-v1.0"
+            "FIN-MVP-ROBUST-HASH-v2.0"
         )
         assert ROBUSTNESS_POLICY_VERSION == (
             "FIN-MVP-ROBUST-POLICY-v1.0"
@@ -282,8 +290,8 @@ class TestRawMadComparison:
         )
         assert any(
             summary.raw_vs_mad_pearson_ic_delta is not None
-            and not pytest.approx(0.0)
-            == summary.raw_vs_mad_pearson_ic_delta
+            and pytest.approx(0.0)
+            != summary.raw_vs_mad_pearson_ic_delta
             for summary in outlier_result.factor_summaries
         )
 

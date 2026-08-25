@@ -26,6 +26,7 @@ from backend.amr.financial_mvp_output import (
     EvidenceAssessment,
     FinancialEvaluationRun,
     FinancialMVPOutputConfig,
+    _hash,
     build_financial_mvp_output,
     project_factor_evaluation_summaries,
     recompute_financial_evaluation_run_content_hash,
@@ -54,6 +55,13 @@ def _codes(result):
 
 
 class TestFrozenContract:
+    def test_v2_hash_normalizes_subprecision_float_noise(self):
+        left = {"value": 0.123456781, "zero": -0.0}
+        right = {"value": 0.123456782, "zero": 0.0}
+        assert _hash("float-parity", left) == _hash(
+            "float-parity", right
+        )
+
     def test_versions_statuses_and_identities_are_frozen(self):
         assert FINANCIAL_RUN_SCHEMA_VERSION == (
             "FinancialEvaluationRun-v1.0"
@@ -65,7 +73,7 @@ class TestFrozenContract:
             "FinancialMVPOutputAudit-v1.0"
         )
         assert OUTPUT_HASH_CONTRACT_VERSION == (
-            "FIN-MVP-OUTPUT-HASH-v1.0"
+            "FIN-MVP-OUTPUT-HASH-v2.0"
         )
         assert OUTPUT_POLICY_VERSION == "FIN-MVP-OUTPUT-POLICY-v1.0"
         assert OUTPUT_PHASE == "phase1_mvp"
@@ -149,11 +157,11 @@ class TestFinancialEvaluationRun:
     ):
         run = output_result.financial_evaluation_run
         assert run.run_id == (
-            "fin-mvp-output-68150aa59b7d17c779648f5b"
+            "fin-mvp-output-fbb8fcb3a6a898af4338069e"
         )
         assert run.content_hash == (
-            "fcae2be3e10b74444922c8e04f7b6ea9"
-            "09b7e8bea05b5eb2440bf9d17f8b5c0e"
+            "d9927431743f09b99d7dc91a8aec4d7a"
+            "a3095575eaa0723d611bab9aa1b67b3e"
         )
         assert (
             recompute_financial_evaluation_run_content_hash(run)
@@ -320,16 +328,16 @@ class TestFactorSummaryProjection:
     ):
         expected = {
             "ROE": (
-                "eebbeeb72332da92f96d44ad7497c34d"
-                "a9c7700bf92ae1e7f84a0addefe72de1"
+                "f62c1888f8ecdcc1aa2b3cdd8f631e6b"
+                "9bf210b80a3c58144bd5fe21d29792cb"
             ),
             "BP": (
-                "25aca1e716a95e5c6410865bfa6e682a"
-                "dc3847121b99a5f538e47dd3c4d0ca7e"
+                "a7a77c2116820d6050cc6ae5a639cc16"
+                "d8be18f6dc0c87cbc60fe607182affe2"
             ),
             "OCF_NP": (
-                "b844ef0effe0eea534fc872b484f70ab"
-                "f708ab58a1a4f965f6ab2101b6fa3aa9"
+                "b50917a356822566e8ea781b7cb5d238"
+                "3db81a2c65009134c98c7ad7336bb36e"
             ),
         }
         assert {
@@ -387,8 +395,8 @@ class TestDeterminismAndBoundaries:
         run = output_result.financial_evaluation_run
         assert audit.run_content_hash == run.content_hash
         assert audit.content_hash == (
-            "78db368794899ca6287d7ab2e0df5eea"
-            "641ad99af8826c6e682f402aa5f7983d"
+            "709d7d1b9382f0c2cb3a6fc639cdeb2d"
+            "b4b7bd6d9375daf46c9a95be5fc6db54"
         )
         assert all(
             len(value) == 64

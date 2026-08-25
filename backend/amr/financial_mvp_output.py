@@ -5,9 +5,10 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Mapping
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -39,11 +40,11 @@ from backend.amr.financial_preprocessing import (
     FinancialPreprocessingResult,
 )
 
-
 FINANCIAL_RUN_SCHEMA_VERSION = "FinancialEvaluationRun-v1.0"
 FACTOR_SUMMARY_SCHEMA_VERSION = "FactorEvaluationSummary-v1.0"
 OUTPUT_AUDIT_SCHEMA_VERSION = "FinancialMVPOutputAudit-v1.0"
-OUTPUT_HASH_CONTRACT_VERSION = "FIN-MVP-OUTPUT-HASH-v1.0"
+OUTPUT_HASH_CONTRACT_VERSION = "FIN-MVP-OUTPUT-HASH-v2.0"
+HASH_FLOAT_DECIMAL_PLACES = 8
 OUTPUT_POLICY_VERSION = "FIN-MVP-OUTPUT-POLICY-v1.0"
 OUTPUT_PHASE = "phase1_mvp"
 OUTPUT_VALIDATION_TRACK = "M"
@@ -793,10 +794,14 @@ def project_factor_evaluation_summaries(
             "key_findings": (
                 f"rank_ic_mean={_display_number(common.rank_ic_mean)}",
                 f"long_short_mean={_display_number(common.long_short_mean)}",
-                "preprocessing_consistency="
-                f"{robustness.preprocessing_consistency}",
-                "subperiod_direction_consistency="
-                f"{robustness.subperiod_direction_consistency}",
+                (
+                    "preprocessing_consistency="
+                    f"{robustness.preprocessing_consistency}"
+                ),
+                (
+                    "subperiod_direction_consistency="
+                    f"{robustness.subperiod_direction_consistency}"
+                ),
             ),
             "warnings": tuple(sorted(set(warnings))),
             "limitations": limitations,
@@ -1257,6 +1262,7 @@ def _canonical(value: Any) -> Any:
             return None
         if not math.isfinite(value):
             raise ValueError("non-finite value cannot enter output hash")
+        value = round(value, HASH_FLOAT_DECIMAL_PLACES)
         if value == 0:
             return 0.0
     return value

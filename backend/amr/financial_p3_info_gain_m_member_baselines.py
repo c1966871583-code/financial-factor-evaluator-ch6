@@ -57,7 +57,7 @@ ACCEPTED_INFO_GAIN_CONTRACT_HASH = (
     "0d2016de40a3babdb2bd973f94a1876b7a6046ee2578b2e07657cccaf78a124b"
 )
 ACCEPTED_M_EVALUATOR_SOURCE_SHA256 = (
-    "94e5c4a7808273fd4d6f5158b5cabc9dc07cdd0bd94dcbca91802a4d0bd74cea"
+    "42a4571299794d3900d43ed1983d82297e7457c3d65950ac6c7eaf43a3daab57"
 )
 M_EVALUATOR_REFERENCE = (
     "backend.amr.financial_mvp_m_evaluation:_evaluate_one_factor"
